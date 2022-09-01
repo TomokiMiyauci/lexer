@@ -64,19 +64,18 @@ export class Lexer {
     }));
   }
 
-  lex(value: string): LexResult {
-    let cursor = 0;
+  lex(input: string, offset = 0): LexResult {
     const tokens: Token[] = [];
 
     function addToken({ type, ignore, literal }: Readonly<TokenContext>): void {
       if (!ignore) {
-        tokens.push({ type, literal, offset: cursor });
+        tokens.push({ type, literal, offset });
       }
-      cursor += literal.length;
+      offset += literal.length;
     }
 
-    while (cursor < value.length) {
-      const characters = value.substring(cursor);
+    while (offset < input.length) {
+      const characters = input.substring(offset);
       const tokenFromString = getTokenByString(characters, this.#strings);
 
       if (tokenFromString) {
@@ -85,10 +84,10 @@ export class Lexer {
       }
 
       this.#regexes.forEach(({ pattern }) => {
-        pattern.lastIndex = cursor;
+        pattern.lastIndex = offset;
       });
 
-      const tokenFromRegex = getTokenByRegex(value, this.#regexes);
+      const tokenFromRegex = getTokenByRegex(input, this.#regexes);
 
       if (tokenFromRegex) {
         addToken(tokenFromRegex);
@@ -98,12 +97,12 @@ export class Lexer {
       break;
     }
 
-    const done: boolean = value.length <= cursor;
+    const done: boolean = input.length <= offset;
 
     return {
       tokens,
       done,
-      offset: cursor,
+      offset,
     };
   }
 }
@@ -111,13 +110,13 @@ export class Lexer {
 type TokenContext = Omit<Token, "offset"> & Context;
 
 function getTokenByRegex(
-  value: string,
+  input: string,
   ctx: RegexContext[],
 ): TokenContext | undefined {
   const tokens: TokenContext[] = [];
 
   ctx.forEach(({ pattern, ...rest }) => {
-    const result = pattern.exec(value);
+    const result = pattern.exec(input);
 
     if (result && result[0]) {
       tokens.unshift({
@@ -134,13 +133,13 @@ function getTokenByRegex(
 }
 
 function getTokenByString(
-  value: string,
+  input: string,
   ctx: readonly StringContext[],
 ): TokenContext | undefined {
   const tokens: TokenContext[] = [];
 
   ctx.forEach(({ pattern, ...rest }) => {
-    if (value.startsWith(pattern)) {
+    if (input.startsWith(pattern)) {
       tokens.unshift({
         ...rest,
         pattern,

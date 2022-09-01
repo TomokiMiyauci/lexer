@@ -268,3 +268,22 @@ Deno.test("should be available regex flags", () => {
     },
   );
 });
+
+Deno.test("should override offset", () => {
+  const lexer = new Lexer({
+    LET: "let",
+    WS: /\s+/,
+  });
+
+  const result = lexer.lex("let ", lexer.lex("let").offset);
+
+  assertEquals(result, {
+    done: true,
+    tokens: [{
+      type: "WS",
+      offset: 3,
+      literal: " ",
+    }],
+    offset: 4,
+  });
+});
