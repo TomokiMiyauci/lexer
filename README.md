@@ -1,4 +1,4 @@
-# rexer
+# lexer
 
 Lexical analyzer for JavaScript.
 
