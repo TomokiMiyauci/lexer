@@ -1,5 +1,5 @@
 import { Lexer } from "./lexer.ts";
-import { assertEquals } from "./dev_deps.ts";
+import { assertEquals, assertThrows } from "./dev_deps.ts";
 
 Deno.test("should return done true when the input is empty string", () => {
   const lexer = new Lexer({});
@@ -242,4 +242,12 @@ Deno.test("should ignore longest matched token", () => {
     tokens: [],
     offset: 5,
   });
+});
+
+Deno.test("should throw error when the regex has global flag", () => {
+  assertThrows(() =>
+    new Lexer({
+      A: /a/g,
+    })
+  );
 });

@@ -39,21 +39,30 @@ export interface LexRule {
 }
 
 export class Lexer {
-  constructor(private tokenMap: TokenMap) {}
+  #strings: StringContext[];
+  #regexes: RegexContext[];
+
+  constructor(private tokenMap: TokenMap) {
+    const contexts = Object.entries(this.tokenMap).map(toContext);
+
+    this.#strings = contexts.filter(({ pattern }) =>
+      isString(pattern)
+    ) as StringContext[];
+
+    const regexContexts = contexts.filter(({ pattern }) =>
+      isRegExp(pattern)
+    ) as RegexContext[];
+
+    regexContexts.forEach(({ pattern }) => assertRegExpFrag(pattern));
+
+    this.#regexes = regexContexts.map((
+      { pattern, ...rest },
+    ) => ({ ...rest, pattern: new RegExp(pattern, "y") }));
+  }
 
   lex(value: string): LexResult {
     let cursor = 0;
     const tokens: Token[] = [];
-
-    const contexts = Object.entries(this.tokenMap).map(toContext);
-
-    const strings = contexts.filter(({ pattern }) =>
-      isString(pattern)
-    ) as StringContext[];
-
-    const regexes = contexts.filter(({ pattern }) => isRegExp(pattern)).map((
-      { pattern, ...rest },
-    ) => ({ ...rest, pattern: new RegExp(pattern, "y") }));
 
     function addToken({ type, ignore, literal }: Readonly<TokenContext>): void {
       if (!ignore) {
@@ -64,18 +73,18 @@ export class Lexer {
 
     while (cursor < value.length) {
       const characters = value.substring(cursor);
-      const tokenFromString = getTokenByString(characters, strings);
+      const tokenFromString = getTokenByString(characters, this.#strings);
 
       if (tokenFromString) {
         addToken(tokenFromString);
         continue;
       }
 
-      regexes.forEach(({ pattern }) => {
+      this.#regexes.forEach(({ pattern }) => {
         pattern.lastIndex = cursor;
       });
 
-      const tokenFromRegex = getTokenByRegex(value, regexes);
+      const tokenFromRegex = getTokenByRegex(value, this.#regexes);
 
       if (tokenFromRegex) {
         addToken(tokenFromRegex);
@@ -169,4 +178,12 @@ function toContext(
     ...resolveOptions(options),
     type,
   };
+}
+
+function assertRegExpFrag(regExp: RegExp): asserts regExp is RegExp {
+  if (regExp.global) {
+    throw new Error(
+      `Global flag is not allowed. ${regExp}`,
+    );
+  }
 }
