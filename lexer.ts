@@ -8,7 +8,7 @@ export interface LexResult {
   /** Whether the lex has done or not. */
   done: boolean;
 
-  /** Final offset. Matches the offset of the last token. */
+  /** Final offset. Same as the last index of the last token. */
   offset: number;
 }
 
@@ -19,6 +19,9 @@ export type Token = {
 
   /** Actual token literal value. */
   literal: string;
+
+  /** Start index of the matched in the input. */
+  offset: number;
 };
 
 export interface Lexis {
@@ -42,8 +45,8 @@ export class Lexer {
       RegExp,
     ][];
 
-    function addToken(token: Token): void {
-      tokens.push(token);
+    function addToken(token: Readonly<StatelessToken>): void {
+      tokens.push({ ...token, offset: cursor });
       cursor += token.literal.length;
     }
 
@@ -83,11 +86,13 @@ export class Lexer {
   }
 }
 
+type StatelessToken = Omit<Token, "offset">;
+
 function getTokenByRegex(
   value: string,
   entries: readonly (readonly [string, RegExp])[],
-): Token | undefined {
-  const tokens: Token[] = [];
+): StatelessToken | undefined {
+  const tokens: StatelessToken[] = [];
 
   entries.forEach(([type, pattern]) => {
     const result = pattern.exec(value);
@@ -108,8 +113,8 @@ function getTokenByRegex(
 function getTokenByString(
   value: string,
   entries: readonly (readonly [string, string])[],
-): Token | undefined {
-  const tokens: Token[] = [];
+): StatelessToken | undefined {
+  const tokens: StatelessToken[] = [];
 
   entries.forEach(([type, pattern]) => {
     if (value.startsWith(pattern)) {

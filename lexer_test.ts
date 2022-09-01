@@ -37,7 +37,7 @@ Deno.test("should return interim results when the token is unknown on the way", 
   const result = lexer.lex(`) let`);
 
   assertEquals(result, {
-    tokens: [{ type: "RPAREN", "literal": ")" }],
+    tokens: [{ type: "RPAREN", "literal": ")", offset: 0 }],
     done: false,
     offset: 1,
   });
@@ -53,9 +53,9 @@ Deno.test("should return interim results when the token is unknown on the way", 
 
   assertEquals(result, {
     tokens: [
-      { type: "LET", literal: "let" },
-      { type: "RPAREN", "literal": ")" },
-      { type: "LET", literal: "let" },
+      { type: "LET", literal: "let", offset: 0 },
+      { type: "RPAREN", "literal": ")", offset: 3 },
+      { type: "LET", literal: "let", offset: 4 },
     ],
     done: false,
     offset: 7,
@@ -70,7 +70,7 @@ Deno.test("should match with regex pattern", () => {
   const result = lexer.lex(`count`);
 
   assertEquals(result, {
-    tokens: [{ type: "IDENT", literal: "count" }],
+    tokens: [{ type: "IDENT", literal: "count", offset: 0 }],
     done: true,
     offset: 5,
   });
@@ -91,21 +91,21 @@ Deno.test("should match with complex pattern", () => {
   assertEquals(result, {
     done: true,
     tokens: [
-      { type: "WS", literal: " " },
-      { type: "CONST", literal: "const" },
-      { type: "WS", literal: " " },
-      { type: "IDENT", literal: "sum" },
-      { type: "WS", literal: " " },
-      { type: "ASSIGN", literal: "=" },
-      { type: "WS", literal: " " },
-      { type: "NUMBER", literal: "10" },
-      { type: "WS", literal: " " },
-      { type: "PLUS", literal: "+" },
-      { type: "WS", literal: " " },
-      { type: "NUMBER", literal: "20" },
-      { type: "WS", literal: " " },
-      { type: "SEMICOLON", literal: ";" },
-      { type: "WS", literal: " " },
+      { type: "WS", literal: " ", offset: 0 },
+      { type: "CONST", literal: "const", offset: 1 },
+      { type: "WS", literal: " ", offset: 6 },
+      { type: "IDENT", literal: "sum", offset: 7 },
+      { type: "WS", literal: " ", offset: 10 },
+      { type: "ASSIGN", literal: "=", offset: 11 },
+      { type: "WS", literal: " ", offset: 12 },
+      { type: "NUMBER", literal: "10", offset: 13 },
+      { type: "WS", literal: " ", offset: 15 },
+      { type: "PLUS", literal: "+", offset: 16 },
+      { type: "WS", literal: " ", offset: 17 },
+      { type: "NUMBER", literal: "20", offset: 18 },
+      { type: "WS", literal: " ", offset: 20 },
+      { type: "SEMICOLON", literal: ";", offset: 21 },
+      { type: "WS", literal: " ", offset: 22 },
     ],
     offset: 23,
   });
@@ -122,9 +122,9 @@ Deno.test("should strings take precedence over regexes", () => {
   assertEquals(result, {
     done: true,
     tokens: [
-      { type: "AA", literal: "aa" },
-      { type: "AA", literal: "aa" },
-      { type: "A", literal: "a" },
+      { type: "AA", literal: "aa", offset: 0 },
+      { type: "AA", literal: "aa", offset: 2 },
+      { type: "A", literal: "a", offset: 4 },
     ],
     offset: 5,
   });
@@ -140,7 +140,7 @@ Deno.test("should takes precedence the later regex when the matching lengths are
   assertEquals(result, {
     done: true,
     tokens: [
-      { type: "IDENT", literal: "INT" },
+      { type: "IDENT", literal: "INT", offset: 0 },
     ],
     offset: 3,
   });
@@ -156,7 +156,7 @@ Deno.test("should takes precedence the later string when the matching lengths ar
   assertEquals(result, {
     done: true,
     tokens: [
-      { type: "AA", literal: "AAA" },
+      { type: "AA", literal: "AAA", offset: 0 },
     ],
     offset: 3,
   });
@@ -173,8 +173,8 @@ Deno.test("should matched with the longest match by string", () => {
   assertEquals(result, {
     done: true,
     tokens: [
-      { type: "AAA", literal: "aaa" },
-      { type: "AA", literal: "aa" },
+      { type: "AAA", literal: "aaa", offset: 0 },
+      { type: "AA", literal: "aa", offset: 3 },
     ],
     offset: 5,
   });
@@ -191,8 +191,8 @@ Deno.test("should matched with the longest match by regex", () => {
   assertEquals(result, {
     done: true,
     tokens: [
-      { type: "AAA", literal: "aaa" },
-      { type: "AA", literal: "aa" },
+      { type: "AAA", literal: "aaa", offset: 0 },
+      { type: "AA", literal: "aa", offset: 3 },
     ],
     offset: 5,
   });
