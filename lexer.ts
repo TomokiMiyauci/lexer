@@ -2,9 +2,9 @@ import { isRegExp, isString, maxBy } from "./deps.ts";
 import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
-export interface LexResult {
+export interface LexResult<T> {
   /** Tokenized tokens. */
-  tokens: Token[];
+  tokens: Token<T>[];
 
   /** Whether the lex has done or not. */
   done: boolean;
@@ -14,9 +14,9 @@ export interface LexResult {
 }
 
 /** Token object, a result of matching an individual lexing rule. */
-export interface Token {
+export interface Token<T> {
   /** Defined token type. */
-  type: string;
+  type: T;
 
   /** Actual token literal value. */
   literal: string;
@@ -26,9 +26,9 @@ export interface Token {
 }
 
 /** Map of token type and token patterns. */
-export interface TokenMap {
-  readonly [k: string]: string | RegExp | LexRule;
-}
+export type TokenMap<T extends PropertyKey> = {
+  readonly [k in T]: string | RegExp | LexRule;
+};
 
 /** Lex rule. */
 export interface LexRule {
@@ -39,12 +39,14 @@ export interface LexRule {
   readonly ignore?: boolean;
 }
 
-export class Lexer {
+export class Lexer<T extends PropertyKey> {
   #strings: StringContext[];
   #regexes: RegexContext[];
 
-  constructor(private tokenMap: TokenMap) {
-    const contexts = Object.entries(this.tokenMap).map(toContext);
+  constructor(private tokenMap: TokenMap<T>) {
+    const contexts = Object.entries(this.tokenMap).map(
+      toContext as never,
+    ) as Context<T>[];
 
     this.#strings = contexts.filter(({ pattern }) =>
       isString(pattern)
@@ -64,12 +66,12 @@ export class Lexer {
     }));
   }
 
-  lex(input: string, offset = 0): LexResult {
-    const tokens: Token[] = [];
+  lex(input: string, offset = 0): LexResult<T> {
+    const tokens: Token<T>[] = [];
 
     function addToken({ type, ignore, literal }: Readonly<TokenContext>): void {
       if (!ignore) {
-        tokens.push({ type, literal, offset });
+        tokens.push({ type: type as T, literal, offset });
       }
       offset += literal.length;
     }
@@ -107,7 +109,7 @@ export class Lexer {
   }
 }
 
-type TokenContext = Omit<Token, "offset"> & Context;
+type TokenContext = Omit<Token<unknown>, "offset"> & Context;
 
 function getTokenByRegex(
   input: string,
@@ -162,8 +164,8 @@ function resolveOptions(options: string | RegExp | LexRule): LexRule {
   return options;
 }
 
-interface Context extends LexRule {
-  type: string;
+interface Context<T extends PropertyKey = string> extends LexRule {
+  type: T;
 }
 
 interface StringContext extends Context {
