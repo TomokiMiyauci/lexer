@@ -13,7 +13,7 @@ export interface LexResult {
 }
 
 /** Token object, a result of matching an individual lexing rule. */
-export type Token = {
+export interface Token {
   /** Defined token type. */
   type: string;
 
@@ -22,32 +22,44 @@ export type Token = {
 
   /** Start index of the matched in the input. */
   offset: number;
-};
+}
 
-export interface Lexis {
-  [k: string]: string | RegExp;
+/** Map of token type and token patterns. */
+export interface TokenMap {
+  readonly [k: string]: string | RegExp | LexRule;
+}
+
+/** Lex rule. */
+export interface LexRule {
+  /** Token matching pattern. */
+  readonly pattern: string | RegExp;
+
+  /** Whether the token ignore or not.  */
+  readonly ignore?: boolean;
 }
 
 export class Lexer {
-  constructor(private lexis: Lexis) {}
+  constructor(private tokenMap: TokenMap) {}
 
   lex(value: string): LexResult {
     let cursor = 0;
     const tokens: Token[] = [];
 
-    const strings = Object.entries(this.lexis).filter(([_, pattern]) =>
-      isString(pattern)
-    ) as [string, string][];
-    const regexes = Object.entries(this.lexis).filter(([_, pattern]) =>
-      isRegExp(pattern)
-    ).map(([type, pattern]) => [type, new RegExp(pattern, "y")]) as [
-      string,
-      RegExp,
-    ][];
+    const contexts = Object.entries(this.tokenMap).map(toContext);
 
-    function addToken(token: Readonly<StatelessToken>): void {
-      tokens.push({ ...token, offset: cursor });
-      cursor += token.literal.length;
+    const strings = contexts.filter(({ pattern }) =>
+      isString(pattern)
+    ) as StringContext[];
+
+    const regexes = contexts.filter(({ pattern }) => isRegExp(pattern)).map((
+      { pattern, ...rest },
+    ) => ({ ...rest, pattern: new RegExp(pattern, "y") }));
+
+    function addToken({ type, ignore, literal }: Readonly<TokenContext>): void {
+      if (!ignore) {
+        tokens.push({ type, literal, offset: cursor });
+      }
+      cursor += literal.length;
     }
 
     while (cursor < value.length) {
@@ -59,14 +71,11 @@ export class Lexer {
         continue;
       }
 
-      regexes.forEach(([_, regex]) => {
-        regex.lastIndex = cursor;
+      regexes.forEach(({ pattern }) => {
+        pattern.lastIndex = cursor;
       });
 
-      const tokenFromRegex = getTokenByRegex(
-        value,
-        regexes,
-      );
+      const tokenFromRegex = getTokenByRegex(value, regexes);
 
       if (tokenFromRegex) {
         addToken(tokenFromRegex);
@@ -86,20 +95,21 @@ export class Lexer {
   }
 }
 
-type StatelessToken = Omit<Token, "offset">;
+type TokenContext = Omit<Token, "offset"> & Context;
 
 function getTokenByRegex(
   value: string,
-  entries: readonly (readonly [string, RegExp])[],
-): StatelessToken | undefined {
-  const tokens: StatelessToken[] = [];
+  ctx: RegexContext[],
+): TokenContext | undefined {
+  const tokens: TokenContext[] = [];
 
-  entries.forEach(([type, pattern]) => {
+  ctx.forEach(({ pattern, ...rest }) => {
     const result = pattern.exec(value);
 
     if (result && result[0]) {
       tokens.unshift({
-        type,
+        ...rest,
+        pattern,
         literal: result[0],
       });
     }
@@ -112,14 +122,15 @@ function getTokenByRegex(
 
 function getTokenByString(
   value: string,
-  entries: readonly (readonly [string, string])[],
-): StatelessToken | undefined {
-  const tokens: StatelessToken[] = [];
+  ctx: readonly StringContext[],
+): TokenContext | undefined {
+  const tokens: TokenContext[] = [];
 
-  entries.forEach(([type, pattern]) => {
+  ctx.forEach(({ pattern, ...rest }) => {
     if (value.startsWith(pattern)) {
       tokens.unshift({
-        type,
+        ...rest,
+        pattern,
         literal: pattern,
       });
     }
@@ -128,4 +139,34 @@ function getTokenByString(
   const maybeToken = maxBy(tokens, ({ literal }) => literal);
 
   return maybeToken;
+}
+
+function resolveOptions(options: string | RegExp | LexRule): LexRule {
+  if (isString(options) || isRegExp(options)) {
+    return {
+      pattern: options,
+    };
+  }
+  return options;
+}
+
+interface Context extends LexRule {
+  type: string;
+}
+
+interface StringContext extends Context {
+  pattern: string;
+}
+
+interface RegexContext extends Context {
+  pattern: RegExp;
+}
+
+function toContext(
+  [type, options]: [string, string | RegExp | LexRule],
+): Context {
+  return {
+    ...resolveOptions(options),
+    type,
+  };
 }

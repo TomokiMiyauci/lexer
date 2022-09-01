@@ -1,1 +1,7 @@
-export { Lexer, type LexResult, type Token } from "./lexer.ts";
+export {
+  Lexer,
+  type LexResult,
+  type LexRule,
+  type Token,
+  type TokenMap,
+} from "./lexer.ts";

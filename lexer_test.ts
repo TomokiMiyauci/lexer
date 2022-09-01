@@ -197,3 +197,49 @@ Deno.test("should matched with the longest match by regex", () => {
     offset: 5,
   });
 });
+
+Deno.test("should ignore token with ignore props", () => {
+  const lexer = new Lexer({
+    WS: {
+      pattern: /\s+/,
+      ignore: true,
+    },
+  });
+
+  assertEquals(lexer.lex("     "), {
+    done: true,
+    tokens: [],
+    offset: 5,
+  });
+});
+
+Deno.test("should ignore token with ignore props by string", () => {
+  const lexer = new Lexer({
+    A: {
+      pattern: "A",
+      ignore: true,
+    },
+  });
+
+  assertEquals(lexer.lex("AAAAA"), {
+    done: true,
+    tokens: [],
+    offset: 5,
+  });
+});
+
+Deno.test("should ignore longest matched token", () => {
+  const lexer = new Lexer({
+    B: /ABC/,
+    A: {
+      pattern: /.+/,
+      ignore: true,
+    },
+  });
+
+  assertEquals(lexer.lex("ABCAB"), {
+    done: true,
+    tokens: [],
+    offset: 5,
+  });
+});
