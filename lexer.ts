@@ -7,6 +7,9 @@ export interface LexResult {
 
   /** Whether the lex has done or not. */
   done: boolean;
+
+  /** Final offset. Matches the offset of the last token. */
+  offset: number;
 }
 
 /** Token object, a result of matching an individual lexing rule. */
@@ -26,10 +29,6 @@ export class Lexer {
   constructor(private lexis: Lexis) {}
 
   lex(value: string): LexResult {
-    if (!value) {
-      return { tokens: [], done: true };
-    }
-
     let cursor = 0;
     const tokens: Token[] = [];
 
@@ -71,15 +70,15 @@ export class Lexer {
         continue;
       }
 
-      return {
-        tokens,
-        done: false,
-      };
+      break;
     }
 
+    const done: boolean = value.length <= cursor;
+
     return {
-      tokens: tokens,
-      done: !!tokens.length,
+      tokens,
+      done,
+      offset: cursor,
     };
   }
 }

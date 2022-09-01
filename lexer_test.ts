@@ -9,38 +9,7 @@ Deno.test("should return done true when the input is empty string", () => {
   assertEquals(result, {
     tokens: [],
     done: true,
-  });
-});
-
-Deno.test("should match maximum", () => {
-  const lexer = new Lexer({
-    "LET": "let",
-    "L": "l",
-    "LE": "le",
-  });
-
-  const result = lexer.lex(`lletle`);
-
-  assertEquals(result, {
-    tokens: [{ type: "L", literal: "l" }, { type: "LET", literal: "let" }, {
-      type: "LE",
-      literal: "le",
-    }],
-    done: true,
-  });
-});
-
-Deno.test("should match pattern with maximum munch", () => {
-  const lexer = new Lexer({
-    "LET": "let",
-    "LE": "le",
-  });
-
-  const result = lexer.lex(`let`);
-
-  assertEquals(result, {
-    tokens: [{ type: "LET", literal: "let" }],
-    done: true,
+    offset: 0,
   });
 });
 
@@ -55,6 +24,7 @@ Deno.test("should empty token when the head token is unknown", () => {
   assertEquals(result, {
     tokens: [],
     done: false,
+    offset: 0,
   });
 });
 
@@ -69,6 +39,7 @@ Deno.test("should return interim results when the token is unknown on the way", 
   assertEquals(result, {
     tokens: [{ type: "RPAREN", "literal": ")" }],
     done: false,
+    offset: 1,
   });
 });
 
@@ -81,11 +52,13 @@ Deno.test("should return interim results when the token is unknown on the way", 
   const result = lexer.lex(`let)let `);
 
   assertEquals(result, {
-    tokens: [{ type: "LET", literal: "let" }, {
-      type: "RPAREN",
-      "literal": ")",
-    }, { type: "LET", literal: "let" }],
+    tokens: [
+      { type: "LET", literal: "let" },
+      { type: "RPAREN", "literal": ")" },
+      { type: "LET", literal: "let" },
+    ],
     done: false,
+    offset: 7,
   });
 });
 
@@ -99,6 +72,7 @@ Deno.test("should match with regex pattern", () => {
   assertEquals(result, {
     tokens: [{ type: "IDENT", literal: "count" }],
     done: true,
+    offset: 5,
   });
 });
 
@@ -133,6 +107,7 @@ Deno.test("should match with complex pattern", () => {
       { type: "SEMICOLON", literal: ";" },
       { type: "WS", literal: " " },
     ],
+    offset: 23,
   });
 });
 
@@ -151,6 +126,7 @@ Deno.test("should strings take precedence over regexes", () => {
       { type: "AA", literal: "aa" },
       { type: "A", literal: "a" },
     ],
+    offset: 5,
   });
 });
 
@@ -166,6 +142,7 @@ Deno.test("should takes precedence the later regex when the matching lengths are
     tokens: [
       { type: "IDENT", literal: "INT" },
     ],
+    offset: 3,
   });
 });
 
@@ -181,6 +158,7 @@ Deno.test("should takes precedence the later string when the matching lengths ar
     tokens: [
       { type: "AA", literal: "AAA" },
     ],
+    offset: 3,
   });
 });
 
@@ -198,6 +176,7 @@ Deno.test("should matched with the longest match by string", () => {
       { type: "AAA", literal: "aaa" },
       { type: "AA", literal: "aa" },
     ],
+    offset: 5,
   });
 });
 
@@ -215,5 +194,6 @@ Deno.test("should matched with the longest match by regex", () => {
       { type: "AAA", literal: "aaa" },
       { type: "AA", literal: "aa" },
     ],
+    offset: 5,
   });
 });
