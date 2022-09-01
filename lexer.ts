@@ -1,4 +1,5 @@
 import { isRegExp, isString, maxBy } from "./deps.ts";
+import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
 export interface LexResult {
@@ -57,7 +58,10 @@ export class Lexer {
 
     this.#regexes = regexContexts.map((
       { pattern, ...rest },
-    ) => ({ ...rest, pattern: new RegExp(pattern, "y") }));
+    ) => ({
+      ...rest,
+      pattern: new RegExp(pattern, uniqueChar("y", pattern.flags)),
+    }));
   }
 
   lex(value: string): LexResult {

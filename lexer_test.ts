@@ -251,3 +251,20 @@ Deno.test("should throw error when the regex has global flag", () => {
     })
   );
 });
+
+Deno.test("should be available regex flags", () => {
+  assertEquals(
+    new Lexer({
+      A: /[a-z]+/iyu,
+    }).lex("Abc"),
+    {
+      done: true,
+      tokens: [{
+        literal: "Abc",
+        offset: 0,
+        type: "A",
+      }],
+      offset: 3,
+    },
+  );
+});
