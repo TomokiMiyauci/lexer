@@ -39,6 +39,40 @@ export interface LexRule {
   readonly ignore?: boolean;
 }
 
+/** Lexer Object.
+ *
+ * ```ts
+ * import { Lexer } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+ * import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
+ *
+ * const lexer = new Lexer({
+ *   LET: "let",
+ *   NUMBER: /\d+/,
+ *   IDENT: /[a-z]+/i,
+ *   ASSIGN: "=",
+ *   PLUS: "+",
+ *   SEMICOLON: ";",
+ *   WS: {
+ *     pattern: /[\s\t]+/,
+ *     ignore: true,
+ *   },
+ * });
+ * const input = `let sum = 100 + 200;`;
+ * const result = lexer.lex(input);
+ * assertEquals(result, {
+ *   tokens: [
+ *     { type: "Let", literal: "let", offset: 0 },
+ *     { type: "Ident", literal: "sum", offset: 3 },
+ *     // ...,
+ *     { type: "Semicolon", literal: ";", offset: 19 },
+ *   ],
+ *   done: true,
+ *   offset: 20,
+ * });
+ * ```
+ *
+ * @throws Error: When the regex pattern has `g` flag.
+ */
 export class Lexer {
   #strings: StringContext[];
   #regexes: RegexContext[];
