@@ -2,9 +2,9 @@ import { isRegExp, isString, maxBy } from "./deps.ts";
 import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
-export interface LexResult<T> {
+export interface LexResult {
   /** Tokenized tokens. */
-  tokens: Token<T>[];
+  tokens: Token[];
 
   /** Whether the lex has done or not. */
   done: boolean;
@@ -14,9 +14,9 @@ export interface LexResult<T> {
 }
 
 /** Token object, a result of matching an individual lexing rule. */
-export interface Token<T> {
+export interface Token {
   /** Defined token type. */
-  type: T;
+  type: string;
 
   /** Actual token literal value. */
   literal: string;
@@ -26,9 +26,9 @@ export interface Token<T> {
 }
 
 /** Map of token type and token patterns. */
-export type TokenMap<T extends PropertyKey> = {
-  readonly [k in T]: string | RegExp | LexRule;
-};
+export interface TokenMap {
+  readonly [k: string]: string | RegExp | LexRule;
+}
 
 /** Lex rule. */
 export interface LexRule {
@@ -39,14 +39,14 @@ export interface LexRule {
   readonly ignore?: boolean;
 }
 
-export class Lexer<T extends PropertyKey> {
+export class Lexer {
   #strings: StringContext[];
   #regexes: RegexContext[];
 
-  constructor(private tokenMap: TokenMap<T>) {
+  constructor(private tokenMap: TokenMap) {
     const contexts = Object.entries(this.tokenMap).map(
-      toContext as never,
-    ) as Context<T>[];
+      toContext,
+    );
 
     this.#strings = contexts.filter(({ pattern }) =>
       isString(pattern)
@@ -66,12 +66,12 @@ export class Lexer<T extends PropertyKey> {
     }));
   }
 
-  lex(input: string, offset = 0): LexResult<T> {
-    const tokens: Token<T>[] = [];
+  lex(input: string, offset = 0): LexResult {
+    const tokens: Token[] = [];
 
     function addToken({ type, ignore, literal }: Readonly<TokenContext>): void {
       if (!ignore) {
-        tokens.push({ type: type as T, literal, offset });
+        tokens.push({ type, literal, offset });
       }
       offset += literal.length;
     }
@@ -109,7 +109,7 @@ export class Lexer<T extends PropertyKey> {
   }
 }
 
-type TokenContext = Omit<Token<unknown>, "offset"> & Context;
+type TokenContext = Omit<Token, "offset"> & Context;
 
 function getTokenByRegex(
   input: string,
