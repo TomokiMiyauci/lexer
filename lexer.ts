@@ -3,7 +3,7 @@ import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
 export interface LexResult {
-  /** Tokenized tokens. */
+  /** Token streams. */
   tokens: Token[];
 
   /** Whether the lex has done or not. */
@@ -168,7 +168,7 @@ function getTokenByString(
   return maybeToken;
 }
 
-function resolveOptions(options: string | RegExp | LexRule): LexRule {
+export function resolveOptions(options: string | RegExp | LexRule): LexRule {
   if (isString(options) || isRegExp(options)) {
     return {
       pattern: options,
