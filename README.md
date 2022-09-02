@@ -255,6 +255,26 @@ The result has the following structure:
 If a character not matching the pattern is encountered, it is aborted and `done`
 is returned as `false` along with the token stream up to that point.
 
+### Generic token types
+
+The `type` of a token matches the token type defined in the token map.
+
+The `type` of the token is narrowed by generics.
+
+```ts
+import { Lexer, TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
+
+const tokenMap: TokenMap = {
+  CONST: "const",
+  IDENT: /.+/,
+};
+const { tokens } = new Lexer(tokenMap).lex("constant");
+tokens.forEach(({ type }) => {
+  type; // infer "CONST" | "INDENT"
+});
+```
+
 ## Benchmark
 
 Benchmark script with comparison to several popular schema library is available.

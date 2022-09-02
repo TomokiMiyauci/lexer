@@ -2,9 +2,9 @@ import { filterValues, isRegExp, isString, maxBy } from "./deps.ts";
 import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
-export interface LexResult {
+export interface LexResult<T extends string = string> {
   /** Token streams. */
-  tokens: Token[];
+  tokens: Token<T>[];
 
   /** Whether the lex has done or not. */
   done: boolean;
@@ -14,9 +14,9 @@ export interface LexResult {
 }
 
 /** Token object, a result of matching an individual lexing rule. */
-export interface Token {
+export interface Token<T extends string = string> {
   /** Defined token type. */
-  type: string;
+  type: T;
 
   /** Actual token literal value. */
   literal: string;
@@ -26,9 +26,9 @@ export interface Token {
 }
 
 /** Map of token type and token patterns. */
-export interface TokenMap {
-  readonly [k: string]: string | RegExp | LexRule | typeof EOF;
-}
+export type TokenMap<T extends string = string> = {
+  readonly [k in T]: string | RegExp | LexRule | typeof EOF;
+};
 
 /** Lex rule. */
 export interface LexRule {
@@ -81,17 +81,17 @@ export interface LexOptions {
  *
  * @throws Error: When the regex pattern has `g` flag.
  */
-export class Lexer {
+export class Lexer<T extends string> {
   #strings: StringContext[];
   #regexes: RegexContext[];
   #eofType: string | undefined;
 
-  constructor(private tokenMap: TokenMap) {
+  constructor(private tokenMap: TokenMap<T>) {
     const eofRecord = filterValues(this.tokenMap, isEOF);
-    this.#eofType = findEOF(eofRecord);
+    this.#eofType = findEOF(eofRecord as never);
 
     const tokenMapExceptEof = filterValues(
-      this.tokenMap,
+      this.tokenMap as never,
       (value) => !isEOF(value),
     ) as Record<string, string | RegExp | LexRule>;
 
@@ -116,14 +116,14 @@ export class Lexer {
   }
 
   /** Analyze input lexically. */
-  lex(input: string, { offset = 0 }: LexOptions = {}): LexResult {
-    const tokens: Token[] = [];
+  lex(input: string, { offset = 0 }: LexOptions = {}): LexResult<T> {
+    const tokens: Token<T>[] = [];
 
     function addToken(
       { type, ignore, literal }: Readonly<Omit<TokenContext, "pattern">>,
     ): void {
       if (!ignore) {
-        tokens.push({ type, literal, offset });
+        tokens.push({ type: type as T, literal, offset });
       }
       offset += literal.length;
     }
