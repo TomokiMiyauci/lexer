@@ -67,7 +67,7 @@ Several expressions are supported for token patterns.
 - regex
 - above with options
 
-### string pattern
+### String patterns
 
 String pattern recognizes strings as they are as patterns.
 
@@ -84,7 +84,7 @@ const tokenMap: TokenMap = {
 String patterns can be used for various tokens such as keywords, separators,
 etc., and are the most readable and perform the best.
 
-### regex pattern
+### Regex patterns
 
 The regex pattern defines a regular expression as a `RegExp` object.
 
@@ -112,7 +112,7 @@ inputs with Left to Right.
 
 If you use the `g` flag, an error is thrown before execution.
 
-### Pattern with options
+### Patterns with options
 
 The two patterns above allow almost any token to be represented.
 
@@ -133,7 +133,7 @@ const tokenMap: TokenMap = {
 | Name    |      Required      | Description                                          |
 | ------- | :----------------: | ---------------------------------------------------- |
 | pattern | :white_check_mark: | `string` &#124; `RegExp`<br> Token matching pattern. |
-| ignore  |                    | `boolean`Whether the token ignore or not.            |
+| ignore  |                    | `boolean`<br>Whether the token ignore or not.        |
 
 If `ignore` is set to `true`, then even if the pattern matches, it will not be
 added to the generated token stream.
