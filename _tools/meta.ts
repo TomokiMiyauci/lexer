@@ -7,7 +7,7 @@ export const makeOptions = (version: string): BuildOptions => ({
   entryPoints: ["./mod.ts"],
   outDir: "./npm",
   package: {
-    name: "lexer-js",
+    name: "@miyauci/lexer",
     version,
     description: "Lexical analyzer for JavaScript",
     keywords: [
