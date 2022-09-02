@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "https://deno.land/x/lexer@$VERSION/": "./",
+    "https://deno.land/std@$VERSION/": "https://deno.land/std@0.153.0/"
+  }
+}

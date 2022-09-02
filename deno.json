@@ -1,0 +1,28 @@
+{
+  "tasks": {
+    "test": "deno test --doc",
+    "coverage": "deno coverage",
+    "bench": "deno bench --allow-read --unstable"
+  },
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true
+  },
+  "fmt": {
+    "files": {
+      "exclude": ["npm", "CHANGELOG.md", "CODE_OF_CONDUCT.md"]
+    }
+  },
+  "lint": {
+    "files": {
+      "exclude": ["npm", "CHANGELOG.md", "CODE_OF_CONDUCT.md"]
+    }
+  },
+  "test": {
+    "files": {
+      "exclude": ["npm", "CHANGELOG.md", "CODE_OF_CONDUCT.md"]
+    }
+  },
+  "importMap": "_test_import_map.json"
+}
