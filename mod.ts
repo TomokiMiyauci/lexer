@@ -1,6 +1,7 @@
 export {
   EOF,
   Lexer,
+  type LexOptions,
   type LexResult,
   type LexRule,
   type Token,

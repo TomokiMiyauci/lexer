@@ -39,6 +39,14 @@ export interface LexRule {
   readonly ignore?: boolean;
 }
 
+/** The lex options. */
+export interface LexOptions {
+  /** Initial offset index.
+   * @default 0
+   */
+  readonly offset?: number;
+}
+
 /** Lexer Object.
  *
  * ```ts
@@ -107,7 +115,8 @@ export class Lexer {
     }));
   }
 
-  lex(input: string, offset = 0): LexResult {
+  /** Analyze input lexically. */
+  lex(input: string, { offset = 0 }: LexOptions = {}): LexResult {
     const tokens: Token[] = [];
 
     function addToken(

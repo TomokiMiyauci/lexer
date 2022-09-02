@@ -275,7 +275,9 @@ Deno.test("should override offset", () => {
     WS: /\s+/,
   });
 
-  const result = lexer.lex("let ", lexer.lex("let").offset);
+  const result = lexer.lex("let ", {
+    offset: lexer.lex("let").offset,
+  });
 
   assertEquals(result, {
     done: true,
