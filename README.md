@@ -275,6 +275,11 @@ tokens.forEach(({ type }) => {
 });
 ```
 
+## API
+
+All APIs can be found in the
+[deno doc](https://doc.deno.land/https/deno.land/x/lexer/mod.ts).
+
 ## Benchmark
 
 Benchmark script with comparison to several popular schema library is available.
