@@ -1,4 +1,5 @@
 export {
+  EOF,
   Lexer,
   type LexResult,
   type LexRule,

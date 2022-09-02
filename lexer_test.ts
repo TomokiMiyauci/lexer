@@ -1,4 +1,4 @@
-import { Lexer } from "./lexer.ts";
+import { EOF, Lexer } from "./lexer.ts";
 import { assertEquals, assertThrows } from "./dev_deps.ts";
 
 Deno.test("should return done true when the input is empty string", () => {
@@ -285,5 +285,21 @@ Deno.test("should override offset", () => {
       literal: " ",
     }],
     offset: 4,
+  });
+});
+
+Deno.test("should end of EOF", () => {
+  const lexer = new Lexer({
+    ["<EOF>"]: EOF,
+    A: "abc",
+  });
+
+  assertEquals(lexer.lex("abc"), {
+    done: true,
+    tokens: [
+      { literal: "abc", offset: 0, type: "A" },
+      { literal: "", offset: 3, type: "<EOF>" },
+    ],
+    offset: 3,
   });
 });

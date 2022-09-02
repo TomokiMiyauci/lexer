@@ -1,4 +1,4 @@
-import { isRegExp, isString, maxBy } from "./deps.ts";
+import { filterValues, isRegExp, isString, maxBy } from "./deps.ts";
 import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
@@ -27,7 +27,7 @@ export interface Token {
 
 /** Map of token type and token patterns. */
 export interface TokenMap {
-  readonly [k: string]: string | RegExp | LexRule;
+  readonly [k: string]: string | RegExp | LexRule | typeof EOF;
 }
 
 /** Lex rule. */
@@ -42,11 +42,18 @@ export interface LexRule {
 export class Lexer {
   #strings: StringContext[];
   #regexes: RegexContext[];
+  #eofType: string | undefined;
 
   constructor(private tokenMap: TokenMap) {
-    const contexts = Object.entries(this.tokenMap).map(
-      toContext,
-    );
+    const eofRecord = filterValues(this.tokenMap, isEOF);
+    this.#eofType = findEOF(eofRecord);
+
+    const tokenMapExceptEof = filterValues(
+      this.tokenMap,
+      (value) => !isEOF(value),
+    ) as Record<string, string | RegExp | LexRule>;
+
+    const contexts = Object.entries(tokenMapExceptEof).map(toContext);
 
     this.#strings = contexts.filter(({ pattern }) =>
       isString(pattern)
@@ -69,7 +76,9 @@ export class Lexer {
   lex(input: string, offset = 0): LexResult {
     const tokens: Token[] = [];
 
-    function addToken({ type, ignore, literal }: Readonly<TokenContext>): void {
+    function addToken(
+      { type, ignore, literal }: Readonly<Omit<TokenContext, "pattern">>,
+    ): void {
       if (!ignore) {
         tokens.push({ type, literal, offset });
       }
@@ -97,6 +106,10 @@ export class Lexer {
       }
 
       break;
+    }
+
+    if (isString(this.#eofType)) {
+      addToken({ type: this.#eofType, literal: "" });
     }
 
     const done: boolean = input.length <= offset;
@@ -191,4 +204,19 @@ function assertRegExpFrag(regExp: RegExp): asserts regExp is RegExp {
       `Global flag is not allowed. ${regExp}`,
     );
   }
+}
+
+/** Special EOF match pattern. */
+export const EOF = Symbol.for("EOF");
+
+function findEOF(tokenMap: TokenMap): string | undefined {
+  const node = Object.entries(tokenMap).findLast(([_, pattern]) =>
+    isEOF(pattern)
+  );
+
+  return node?.[0];
+}
+
+function isEOF(value: unknown): value is typeof EOF {
+  return value === EOF;
 }
