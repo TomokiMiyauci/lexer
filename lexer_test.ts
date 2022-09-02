@@ -303,3 +303,16 @@ Deno.test("should end of EOF", () => {
     offset: 3,
   });
 });
+
+Deno.test("should not includes end of EOF when the lex is failed", () => {
+  const lexer = new Lexer({
+    ["<EOF>"]: EOF,
+    A: "abc",
+  });
+
+  assertEquals(lexer.lex("ab"), {
+    done: false,
+    tokens: [],
+    offset: 0,
+  });
+});

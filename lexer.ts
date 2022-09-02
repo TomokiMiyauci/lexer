@@ -108,11 +108,10 @@ export class Lexer {
       break;
     }
 
-    if (isString(this.#eofType)) {
+    const done: boolean = input.length <= offset;
+    if (done && isString(this.#eofType)) {
       addToken({ type: this.#eofType, literal: "" });
     }
-
-    const done: boolean = input.length <= offset;
 
     return {
       tokens,
