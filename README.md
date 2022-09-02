@@ -280,7 +280,7 @@ tokens.forEach(({ type }) => {
 Benchmark script with comparison to several popular schema library is available.
 
 ```bash
-deno bench --unstable
+deno task bench
 ```
 
 ## License

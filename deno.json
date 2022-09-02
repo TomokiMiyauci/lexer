@@ -1,6 +1,7 @@
 {
   "tasks": {
-    "test": "deno test --doc"
+    "test": "deno test --doc",
+    "bench": "deno bench --allow-read --unstable"
   },
   "compilerOptions": {
     "noUncheckedIndexedAccess": true,

@@ -133,7 +133,7 @@ const tokenMap = {
   [OperatorType.PLUS]: "+",
   [OperatorType.MINUS]: "-",
 
-  [TokenType.COMMENT]: /\/\*\*(.+?)\*\//,
+  [TokenType.COMMENT]: /\/\*\*(.+?)\*\//s,
 };
 
 function toLeac(tokenMap: TokenMap): Rules {
