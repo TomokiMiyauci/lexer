@@ -1,4 +1,4 @@
-import { filterValues, isRegExp, isString, maxBy } from "./deps.ts";
+import { filterValues, isRegExp, isString, maxBy, sortBy } from "./deps.ts";
 import { uniqueChar } from "./utils.ts";
 
 /** Result of lex. */
@@ -96,10 +96,10 @@ export class Lexer<T extends string> {
     ) as Record<string, string | RegExp | LexRule>;
 
     const contexts = Object.entries(tokenMapExceptEof).map(toContext);
-
-    this.#strings = contexts.filter(({ pattern }) =>
-      isString(pattern)
-    ) as StringContext[];
+    this.#strings = sortBy(
+      contexts.filter(({ pattern }) => isString(pattern)) as StringContext[],
+      ({ pattern }) => pattern,
+    ).reverse();
 
     const regexContexts = contexts.filter(({ pattern }) =>
       isRegExp(pattern)
@@ -130,10 +130,12 @@ export class Lexer<T extends string> {
 
     while (offset < input.length) {
       const characters = input.substring(offset);
-      const tokenFromString = getTokenByString(characters, this.#strings);
+      const tokenFromString = this.#strings.find(({ pattern }) =>
+        characters.startsWith(pattern)
+      );
 
       if (tokenFromString) {
-        addToken(tokenFromString);
+        addToken({ ...tokenFromString, literal: tokenFromString.pattern });
         continue;
       }
 
@@ -180,27 +182,6 @@ function getTokenByRegex(
         ...rest,
         pattern,
         literal: result[0],
-      });
-    }
-  });
-
-  const maybeToken = maxBy(tokens, ({ literal }) => literal);
-
-  return maybeToken;
-}
-
-function getTokenByString(
-  input: string,
-  ctx: readonly StringContext[],
-): TokenContext | undefined {
-  const tokens: TokenContext[] = [];
-
-  ctx.forEach(({ pattern, ...rest }) => {
-    if (input.startsWith(pattern)) {
-      tokens.unshift({
-        ...rest,
-        pattern,
-        literal: pattern,
       });
     }
   });
