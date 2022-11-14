@@ -16,7 +16,14 @@ import type {
 } from "./types.ts";
 import { CursorImpl } from "./cursor.ts";
 
-const DEFAULT_UNKNOWN = "Unknown";
+export interface LexerOptions {
+  /**
+   * @default "UNKNOWN"
+   */
+  readonly unknownType?: string;
+}
+
+const DEFAULT_UNKNOWN = "UNKNOWN";
 
 /** Lexer Object.
  *
@@ -55,13 +62,14 @@ const DEFAULT_UNKNOWN = "Unknown";
 export class Lexer {
   #ruleMap: Rules;
 
-  #unknown = DEFAULT_UNKNOWN;
+  #unknown: string;
 
-  constructor(grammar: Grammar) {
+  constructor(grammar: Grammar, options?: LexerOptions) {
     const rules = mapValues(grammar, resolveOptions);
     this.#ruleMap = preProcess(rules);
 
     this.#ruleMap.regex.forEach(({ pattern }) => assertRegExpFrag(pattern));
+    this.#unknown = options?.unknownType ?? DEFAULT_UNKNOWN;
   }
 
   /** Analyze input lexically. */

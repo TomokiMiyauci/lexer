@@ -17,7 +17,7 @@ Deno.test("should return tokens with unknown token type", () => {
 
   assertEquals(result, {
     values: [{
-      type: "Unknown",
+      type: "UNKNOWN",
       value: " ",
     }],
   });
@@ -29,7 +29,7 @@ Deno.test("should return tokens with merged unknown token type", () => {
 
   assertEquals(result, {
     values: [{
-      type: "Unknown",
+      type: "UNKNOWN",
       value: " a",
     }],
   });
@@ -41,7 +41,7 @@ Deno.test("should return tokens with merged unknown token type", () => {
 
   assertEquals(result, {
     values: [{
-      type: "Unknown",
+      type: "UNKNOWN",
       value: "  ",
     }],
   });
@@ -295,25 +295,25 @@ console.log(c)
     {
       values: [
         { type: Type.Const, value: "const" },
-        { type: "Unknown", value: "a" },
+        { type: "UNKNOWN", value: "a" },
         { type: Type.Eq, value: "=" },
         { type: Type.Number, value: "1" },
         { type: Type.SEMICOLON, value: ";" },
         { type: Type.Let, value: "let" },
-        { type: "Unknown", value: "b" },
+        { type: "UNKNOWN", value: "b" },
         { type: Type.Eq, value: "=" },
         { type: Type.Number, value: "2" },
         { type: Type.SEMICOLON, value: ";" },
         { type: Type.Var, value: "var" },
-        { type: "Unknown", value: "c" },
+        { type: "UNKNOWN", value: "c" },
         { type: Type.Eq, value: "=" },
-        { type: "Unknown", value: "a" },
+        { type: "UNKNOWN", value: "a" },
         { type: Type.PLUS, value: "+" },
-        { type: "Unknown", value: "b" },
+        { type: "UNKNOWN", value: "b" },
         { type: Type.SEMICOLON, value: ";" },
-        { type: "Unknown", value: "console.log" },
+        { type: "UNKNOWN", value: "console.log" },
         { type: Type.LParen, value: "(" },
-        { type: "Unknown", value: "c" },
+        { type: "UNKNOWN", value: "c" },
         { type: Type.RParen, value: ")" },
       ],
     },
