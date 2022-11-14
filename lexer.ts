@@ -1,10 +1,12 @@
 import {
+  $,
   type ExtendArg,
   filterValues,
   isRegExp,
   isString,
   mapValues,
   maxBy,
+  prop,
 } from "./deps.ts";
 import { assertRegExpFrag, uniqueChar } from "./utils.ts";
 import type {
@@ -68,7 +70,7 @@ export class Lexer {
     const rules = mapValues(grammar, resolveOptions);
     this.#ruleMap = preProcess(rules);
 
-    this.#ruleMap.regex.forEach(({ pattern }) => assertRegExpFrag(pattern));
+    this.#ruleMap.regex.forEach($(prop("pattern"), assertRegExpFrag));
     this.#unknown = options?.unknownType ?? DEFAULT_UNKNOWN;
   }
 
@@ -158,7 +160,7 @@ function getTokenByRegex(
     }
   });
 
-  const maybeToken = maxBy(tokens, ({ resolved }) => resolved);
+  const maybeToken = maxBy(tokens, prop("resolved"));
 
   return maybeToken;
 }
@@ -225,9 +227,10 @@ interface PreProcessor {
 }
 
 const preProcess: PreProcessor = (rules) => {
+  const $pattern = prop("pattern");
   const stringRules = filterValues(
     rules,
-    ({ pattern }) => isString(pattern),
+    $($pattern, isString),
   ) as Record<string, TypeRuleMap["string"]>;
 
   const string = Object.entries(stringRules).map(([type, value]) => {
@@ -239,7 +242,7 @@ const preProcess: PreProcessor = (rules) => {
 
   const regexRules = filterValues(
     rules,
-    ({ pattern }) => isRegExp(pattern),
+    $($pattern, isRegExp),
   ) as Record<string, TypeRuleMap["regex"]>;
 
   const result = Object.entries(regexRules).map(([type, value]) => {
