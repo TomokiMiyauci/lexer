@@ -1,7 +1,6 @@
 import {
   $,
   type ExtendArg,
-  filterValues,
   isRegExp,
   isString,
   mapValues,
@@ -80,6 +79,15 @@ export class Lexer {
     const tokens: AnalyzeResult["values"] = [];
     const errorStack: Token[] = [];
 
+    function dumpErrorToken(): void {
+      const errorToken = foldToken(errorStack);
+      errorStack.length = 0;
+
+      if (errorToken) {
+        tokens.push(errorToken);
+      }
+    }
+
     while (cursor.current < input.length) {
       const result = resolveRule({
         string: stringResolver,
@@ -91,11 +99,8 @@ export class Lexer {
       });
 
       if (result) {
-        const errorToken = foldToken(errorStack);
-        errorStack.length = 0;
-        if (errorToken) {
-          tokens.push(errorToken);
-        }
+        dumpErrorToken();
+
         if (!result.ignore) {
           tokens.push({
             type: result.type,
@@ -117,11 +122,7 @@ export class Lexer {
       }
     }
 
-    const errorToken = foldToken(errorStack);
-    errorStack.length = 0;
-    if (errorToken) {
-      tokens.push(errorToken);
-    }
+    dumpErrorToken();
 
     return {
       values: tokens,
@@ -165,7 +166,7 @@ function getTokenByRegex(
   return maybeToken;
 }
 
-export function resolveOptions(
+function resolveOptions(
   options: string | RegExp | RuleOptions,
 ): RuleOptions {
   if (isString(options) || isRegExp(options)) {
@@ -210,9 +211,11 @@ type ResolverMap = {
   [k in keyof Rules]: ExtendArg<Resolver, Rules[k]>;
 };
 
-interface MatchContext extends RuleOptions {
+interface Typeable {
   type: string;
 }
+
+interface MatchContext extends RuleOptions, Typeable {}
 
 interface ResolveResult extends MatchContext {
   resolved: string;
@@ -228,46 +231,29 @@ interface PreProcessor {
 
 const preProcess: PreProcessor = (rules) => {
   const $pattern = prop("pattern");
-  const stringRules = filterValues(
-    rules,
+  const entries = Object.entries(rules);
+  const typed = entries.map(([type, value]) => ({ type, ...value }));
+  const strings = typed.filter(
     $($pattern, isString),
-  ) as Record<string, TypeRuleMap["string"]>;
-
-  const string = Object.entries(stringRules).map(([type, value]) => {
-    return {
-      type,
-      ...value,
-    };
-  }).toSorted((a, b) => b.pattern.length - a.pattern.length);
-
-  const regexRules = filterValues(
-    rules,
+  ) as (TypeRuleMap["string"] & Typeable)[];
+  const regexs = typed.filter(
     $($pattern, isRegExp),
-  ) as Record<string, TypeRuleMap["regex"]>;
-
-  const result = Object.entries(regexRules).map(([type, value]) => {
-    return {
-      type,
-      ...value,
-    };
-  });
-
-  const regex = result.map((
+  ) as (TypeRuleMap["regex"] & Typeable)[];
+  const string = strings.toSorted((a, b) =>
+    b.pattern.length - a.pattern.length
+  );
+  const regex = regexs.map((
     { pattern, ...rest },
   ) => ({
     ...rest,
     pattern: new RegExp(pattern, uniqueChar("y", pattern.flags)),
   }));
 
-  return {
-    string,
-    regex,
-  };
+  return { string, regex };
 };
 
 const stringResolver: ResolverMap["string"] = ({ input, offset }, rules) => {
   const characters = input.substring(offset);
-
   const result = rules.find(({ pattern }) => characters.startsWith(pattern));
 
   if (result) {
@@ -278,13 +264,10 @@ const stringResolver: ResolverMap["string"] = ({ input, offset }, rules) => {
 const regexResolver: ResolverMap["regex"] = ({ input, offset }, rules) => {
   const regex = rules.map(({ pattern, ...rest }) => {
     pattern.lastIndex = offset;
-    return {
-      ...rest,
-      pattern,
-    };
+
+    return { ...rest, pattern };
   });
+  const result = getTokenByRegex(input, regex);
 
-  const tokenFromRegex = getTokenByRegex(input, regex);
-
-  return tokenFromRegex;
+  return result;
 };
