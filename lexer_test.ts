@@ -1,13 +1,15 @@
 import { Lexer } from "./lexer.ts";
 import { assertEquals, assertThrows } from "./dev_deps.ts";
 
+const EofToken = { type: "EOF", value: "" };
+
 Deno.test("should return done true when the input is empty string", () => {
   const lexer = new Lexer({});
 
   const result = lexer.analyze(``);
 
   assertEquals(result, {
-    values: [],
+    values: [EofToken],
   });
 });
 
@@ -16,10 +18,7 @@ Deno.test("should return tokens with unknown token type", () => {
   const result = lexer.analyze(` `);
 
   assertEquals(result, {
-    values: [{
-      type: "UNKNOWN",
-      value: " ",
-    }],
+    values: [{ type: "UNKNOWN", value: " " }, EofToken],
   });
 });
 
@@ -28,10 +27,7 @@ Deno.test("should return tokens with merged unknown token type", () => {
   const result = lexer.analyze(` a`);
 
   assertEquals(result, {
-    values: [{
-      type: "UNKNOWN",
-      value: " a",
-    }],
+    values: [{ type: "UNKNOWN", value: " a" }, EofToken],
   });
 });
 
@@ -40,10 +36,7 @@ Deno.test("should change unknown tokens", () => {
   const result = lexer.analyze(` a`);
 
   assertEquals(result, {
-    values: [{
-      type: "?",
-      value: " a",
-    }],
+    values: [{ type: "?", value: " a" }, EofToken],
   });
 });
 
@@ -52,10 +45,7 @@ Deno.test("should return tokens with merged unknown token type", () => {
   const result = lexer.analyze(`  `);
 
   assertEquals(result, {
-    values: [{
-      type: "UNKNOWN",
-      value: "  ",
-    }],
+    values: [{ type: "UNKNOWN", value: "  " }, EofToken],
   });
 });
 
@@ -67,7 +57,7 @@ Deno.test("should return return tokens when match string rule", () => {
   const result = lexer.analyze(`)`);
 
   assertEquals(result, {
-    values: [{ type: "RPAREN", value: ")" }],
+    values: [{ type: "RPAREN", value: ")" }, EofToken],
   });
 });
 
@@ -80,11 +70,10 @@ Deno.test("should return tokens when match multiple string rule", () => {
   const result = lexer.analyze(`let)let`);
 
   assertEquals(result, {
-    values: [
-      { type: "LET", value: "let" },
-      { type: "RPAREN", value: ")" },
-      { type: "LET", value: "let" },
-    ],
+    values: [{ type: "LET", value: "let" }, { type: "RPAREN", value: ")" }, {
+      type: "LET",
+      value: "let",
+    }, EofToken],
   });
 });
 
@@ -96,7 +85,7 @@ Deno.test("should match with regex pattern", () => {
   const result = lexer.analyze(`count`);
 
   assertEquals(result, {
-    values: [{ type: "IDENT", value: "count" }],
+    values: [{ type: "IDENT", value: "count" }, EofToken],
   });
 });
 
@@ -129,6 +118,7 @@ Deno.test("should match with complex pattern", () => {
       { type: "WS", value: " " },
       { type: "SEMICOLON", value: ";" },
       { type: "WS", value: " " },
+      EofToken,
     ],
   });
 });
@@ -146,6 +136,7 @@ Deno.test("should strings take precedence over regexes", () => {
       { type: "AA", value: "aa" },
       { type: "AA", value: "aa" },
       { type: "A", value: "a" },
+      EofToken,
     ],
   });
 });
@@ -160,6 +151,7 @@ Deno.test("should takes precedence the first regex when the matching lengths are
   assertEquals(result, {
     values: [
       { type: "INT", value: "INT" },
+      EofToken,
     ],
   });
 });
@@ -174,6 +166,7 @@ Deno.test("should takes precedence the first string when the matching lengths ar
   assertEquals(result, {
     values: [
       { type: "A", value: "AAA" },
+      EofToken,
     ],
   });
 });
@@ -190,6 +183,7 @@ Deno.test("should matched with the longest match by string", () => {
     values: [
       { type: "AAA", value: "aaa" },
       { type: "AA", value: "aa" },
+      EofToken,
     ],
   });
 });
@@ -206,6 +200,7 @@ Deno.test("should matched with the longest match by regex", () => {
     values: [
       { type: "AAA", value: "aaa" },
       { type: "AA", value: "aa" },
+      EofToken,
     ],
   });
 });
@@ -219,7 +214,7 @@ Deno.test("should ignore token with ignore props", () => {
   });
 
   assertEquals(lexer.analyze("     "), {
-    values: [],
+    values: [EofToken],
   });
 });
 
@@ -232,7 +227,7 @@ Deno.test("should ignore token with ignore props by string", () => {
   });
 
   assertEquals(lexer.analyze("AAAAA"), {
-    values: [],
+    values: [EofToken],
   });
 });
 
@@ -246,7 +241,7 @@ Deno.test("should ignore longest matched token", () => {
   });
 
   assertEquals(lexer.analyze("ABCAB"), {
-    values: [],
+    values: [EofToken],
   });
 });
 
@@ -264,10 +259,7 @@ Deno.test("should be available regex flags", () => {
       A: /[a-z]+/iyu,
     }).analyze("Abc"),
     {
-      values: [{
-        type: "A",
-        value: "Abc",
-      }],
+      values: [{ type: "A", value: "Abc" }, EofToken],
     },
   );
 });
@@ -327,6 +319,7 @@ console.log(c)
         { type: Type.LParen, value: "(" },
         { type: "UNKNOWN", value: "c" },
         { type: Type.RParen, value: ")" },
+        EofToken,
       ],
     },
   );

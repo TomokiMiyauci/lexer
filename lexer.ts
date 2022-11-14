@@ -26,6 +26,7 @@ export interface LexerOptions {
 }
 
 const DEFAULT_UNKNOWN = "UNKNOWN";
+const DEFAULT_EOF = "EOF";
 
 /** Lexer Object.
  *
@@ -65,6 +66,7 @@ export class Lexer {
   #ruleMap: Rules;
 
   #unknown: string;
+  #eof: string = DEFAULT_EOF;
 
   constructor(grammar: Grammar, options?: LexerOptions) {
     const rules = mapValues(grammar, resolveOptions);
@@ -103,10 +105,7 @@ export class Lexer {
         dumpErrorToken();
 
         if (!result.ignore) {
-          tokens.push({
-            type: result.type,
-            value: result.resolved,
-          });
+          tokens.push({ type: result.type, value: result.resolved });
         }
         cursor.next(result.resolved.length);
         continue;
@@ -116,18 +115,14 @@ export class Lexer {
       cursor.next();
 
       if (current) {
-        errorStack.push({
-          type: this.#unknown,
-          value: current,
-        });
+        errorStack.push({ type: this.#unknown, value: current });
       }
     }
 
     dumpErrorToken();
+    tokens.push({ type: this.#eof, value: "" });
 
-    return {
-      values: tokens,
-    };
+    return { values: tokens };
   }
 }
 
