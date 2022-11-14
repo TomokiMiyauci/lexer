@@ -17,8 +17,9 @@ import type {
 } from "./types.ts";
 import { CursorImpl } from "./cursor.ts";
 
+/** Lexer options. */
 export interface LexerOptions {
-  /**
+  /** Unknown token type. If the input stream does not match any grammar, set the token as this type.
    * @default "UNKNOWN"
    */
   readonly unknownType?: string;

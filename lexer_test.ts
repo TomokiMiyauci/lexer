@@ -35,6 +35,18 @@ Deno.test("should return tokens with merged unknown token type", () => {
   });
 });
 
+Deno.test("should change unknown tokens", () => {
+  const lexer = new Lexer({}, { unknownType: "?" });
+  const result = lexer.analyze(` a`);
+
+  assertEquals(result, {
+    values: [{
+      type: "?",
+      value: " a",
+    }],
+  });
+});
+
 Deno.test("should return tokens with merged unknown token type", () => {
   const lexer = new Lexer({});
   const result = lexer.analyze(`  `);

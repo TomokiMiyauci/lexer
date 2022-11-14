@@ -1,4 +1,4 @@
-export { Lexer } from "./lexer.ts";
+export { Lexer, type LexerOptions } from "./lexer.ts";
 export type {
   AnalyzeResult,
   Grammar,
