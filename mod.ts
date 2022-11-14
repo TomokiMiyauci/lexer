@@ -1,9 +1,8 @@
-export {
-  EOF,
-  Lexer,
-  type LexOptions,
-  type LexResult,
-  type LexRule,
-  type Token,
-  type TokenMap,
-} from "./lexer.ts";
+export { Lexer } from "./lexer.ts";
+export type {
+  AnalyzeResult,
+  Grammar,
+  Rule,
+  RuleOptions,
+  Token,
+} from "./types.ts";

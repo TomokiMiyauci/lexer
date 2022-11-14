@@ -1,64 +1,78 @@
-import { EOF, Lexer } from "./lexer.ts";
+import { Lexer } from "./lexer.ts";
 import { assertEquals, assertThrows } from "./dev_deps.ts";
 
 Deno.test("should return done true when the input is empty string", () => {
   const lexer = new Lexer({});
 
-  const result = lexer.lex(``);
+  const result = lexer.analyze(``);
 
   assertEquals(result, {
-    tokens: [],
-    done: true,
-    offset: 0,
+    values: [],
   });
 });
 
-Deno.test("should empty token when the head token is unknown", () => {
+Deno.test("should return tokens with unknown token type", () => {
+  const lexer = new Lexer({});
+  const result = lexer.analyze(` `);
+
+  assertEquals(result, {
+    values: [{
+      type: "Unknown",
+      value: " ",
+    }],
+  });
+});
+
+Deno.test("should return tokens with merged unknown token type", () => {
+  const lexer = new Lexer({});
+  const result = lexer.analyze(` a`);
+
+  assertEquals(result, {
+    values: [{
+      type: "Unknown",
+      value: " a",
+    }],
+  });
+});
+
+Deno.test("should return tokens with merged unknown token type", () => {
+  const lexer = new Lexer({});
+  const result = lexer.analyze(`  `);
+
+  assertEquals(result, {
+    values: [{
+      type: "Unknown",
+      value: "  ",
+    }],
+  });
+});
+
+Deno.test("should return return tokens when match string rule", () => {
+  const lexer = new Lexer({
+    "RPAREN": ")",
+  });
+
+  const result = lexer.analyze(`)`);
+
+  assertEquals(result, {
+    values: [{ type: "RPAREN", value: ")" }],
+  });
+});
+
+Deno.test("should return tokens when match multiple string rule", () => {
   const lexer = new Lexer({
     "LET": "let",
     "RPAREN": ")",
   });
 
-  const result = lexer.lex(` )`);
+  const result = lexer.analyze(`let)let`);
 
   assertEquals(result, {
-    tokens: [],
-    done: false,
-    offset: 0,
-  });
-});
-
-Deno.test("should return interim results when the token is unknown on the way", () => {
-  const lexer = new Lexer({
-    "LET": "let",
-    "RPAREN": ")",
-  });
-
-  const result = lexer.lex(`) let`);
-
-  assertEquals(result, {
-    tokens: [{ type: "RPAREN", "literal": ")", offset: 0 }],
-    done: false,
-    offset: 1,
-  });
-});
-
-Deno.test("should return interim results when the token is unknown on the way", () => {
-  const lexer = new Lexer({
-    "LET": "let",
-    "RPAREN": ")",
-  });
-
-  const result = lexer.lex(`let)let `);
-
-  assertEquals(result, {
-    tokens: [
-      { type: "LET", literal: "let", offset: 0 },
-      { type: "RPAREN", "literal": ")", offset: 3 },
-      { type: "LET", literal: "let", offset: 4 },
+    values: [
+      { type: "LET", value: "let" },
+      { type: "RPAREN", value: ")" },
+      { type: "LET", value: "let" },
     ],
-    done: false,
-    offset: 7,
   });
 });
 
@@ -67,12 +81,10 @@ Deno.test("should match with regex pattern", () => {
     "IDENT": /[a-z]+/,
   });
 
-  const result = lexer.lex(`count`);
+  const result = lexer.analyze(`count`);
 
   assertEquals(result, {
-    tokens: [{ type: "IDENT", literal: "count", offset: 0 }],
-    done: true,
-    offset: 5,
+    values: [{ type: "IDENT", value: "count" }],
   });
 });
 
@@ -87,27 +99,25 @@ Deno.test("should match with complex pattern", () => {
     SEMICOLON: ";",
   });
 
-  const result = lexer.lex(" const sum = 10 + 20 ; ");
+  const result = lexer.analyze(" const sum = 10 + 20 ; ");
   assertEquals(result, {
-    done: true,
-    tokens: [
-      { type: "WS", literal: " ", offset: 0 },
-      { type: "CONST", literal: "const", offset: 1 },
-      { type: "WS", literal: " ", offset: 6 },
-      { type: "IDENT", literal: "sum", offset: 7 },
-      { type: "WS", literal: " ", offset: 10 },
-      { type: "ASSIGN", literal: "=", offset: 11 },
-      { type: "WS", literal: " ", offset: 12 },
-      { type: "NUMBER", literal: "10", offset: 13 },
-      { type: "WS", literal: " ", offset: 15 },
-      { type: "PLUS", literal: "+", offset: 16 },
-      { type: "WS", literal: " ", offset: 17 },
-      { type: "NUMBER", literal: "20", offset: 18 },
-      { type: "WS", literal: " ", offset: 20 },
-      { type: "SEMICOLON", literal: ";", offset: 21 },
-      { type: "WS", literal: " ", offset: 22 },
+    values: [
+      { type: "WS", value: " " },
+      { type: "CONST", value: "const" },
+      { type: "WS", value: " " },
+      { type: "IDENT", value: "sum" },
+      { type: "WS", value: " " },
+      { type: "ASSIGN", value: "=" },
+      { type: "WS", value: " " },
+      { type: "NUMBER", value: "10" },
+      { type: "WS", value: " " },
+      { type: "PLUS", value: "+" },
+      { type: "WS", value: " " },
+      { type: "NUMBER", value: "20" },
+      { type: "WS", value: " " },
+      { type: "SEMICOLON", value: ";" },
+      { type: "WS", value: " " },
     ],
-    offset: 23,
   });
 });
 
@@ -118,47 +128,41 @@ Deno.test("should strings take precedence over regexes", () => {
     A: "a",
   });
 
-  const result = lexer.lex("aaaaa");
+  const result = lexer.analyze("aaaaa");
   assertEquals(result, {
-    done: true,
-    tokens: [
-      { type: "AA", literal: "aa", offset: 0 },
-      { type: "AA", literal: "aa", offset: 2 },
-      { type: "A", literal: "a", offset: 4 },
+    values: [
+      { type: "AA", value: "aa" },
+      { type: "AA", value: "aa" },
+      { type: "A", value: "a" },
     ],
-    offset: 5,
   });
 });
 
-Deno.test("should takes precedence the later regex when the matching lengths are the same", () => {
+Deno.test("should takes precedence the first regex when the matching lengths are the same", () => {
   const lexer = new Lexer({
     INT: /INT/,
-    IDENT: /[A-Z]+/,
+    IDENT: /INT/,
   });
 
-  const result = lexer.lex("INT");
+  const result = lexer.analyze("INT");
   assertEquals(result, {
-    done: true,
-    tokens: [
-      { type: "IDENT", literal: "INT", offset: 0 },
+    values: [
+      { type: "INT", value: "INT" },
     ],
-    offset: 3,
   });
 });
 
-Deno.test("should takes precedence the later string when the matching lengths are the same", () => {
+Deno.test("should takes precedence the first string when the matching lengths are the same", () => {
   const lexer = new Lexer({
     A: "AAA",
     AA: "AAA",
   });
 
-  const result = lexer.lex("AAA");
+  const result = lexer.analyze("AAA");
   assertEquals(result, {
-    done: true,
-    tokens: [
-      { type: "AA", literal: "AAA", offset: 0 },
+    values: [
+      { type: "A", value: "AAA" },
     ],
-    offset: 3,
   });
 });
 
@@ -169,14 +173,12 @@ Deno.test("should matched with the longest match by string", () => {
     A: "a",
   });
 
-  const result = lexer.lex("aaaaa");
+  const result = lexer.analyze("aaaaa");
   assertEquals(result, {
-    done: true,
-    tokens: [
-      { type: "AAA", literal: "aaa", offset: 0 },
-      { type: "AA", literal: "aa", offset: 3 },
+    values: [
+      { type: "AAA", value: "aaa" },
+      { type: "AA", value: "aa" },
     ],
-    offset: 5,
   });
 });
 
@@ -187,14 +189,12 @@ Deno.test("should matched with the longest match by regex", () => {
     A: /a/,
   });
 
-  const result = lexer.lex("aaaaa");
+  const result = lexer.analyze("aaaaa");
   assertEquals(result, {
-    done: true,
-    tokens: [
-      { type: "AAA", literal: "aaa", offset: 0 },
-      { type: "AA", literal: "aa", offset: 3 },
+    values: [
+      { type: "AAA", value: "aaa" },
+      { type: "AA", value: "aa" },
     ],
-    offset: 5,
   });
 });
 
@@ -206,10 +206,8 @@ Deno.test("should ignore token with ignore props", () => {
     },
   });
 
-  assertEquals(lexer.lex("     "), {
-    done: true,
-    tokens: [],
-    offset: 5,
+  assertEquals(lexer.analyze("     "), {
+    values: [],
   });
 });
 
@@ -221,10 +219,8 @@ Deno.test("should ignore token with ignore props by string", () => {
     },
   });
 
-  assertEquals(lexer.lex("AAAAA"), {
-    done: true,
-    tokens: [],
-    offset: 5,
+  assertEquals(lexer.analyze("AAAAA"), {
+    values: [],
   });
 });
 
@@ -237,10 +233,8 @@ Deno.test("should ignore longest matched token", () => {
     },
   });
 
-  assertEquals(lexer.lex("ABCAB"), {
-    done: true,
-    tokens: [],
-    offset: 5,
+  assertEquals(lexer.analyze("ABCAB"), {
+    values: [],
   });
 });
 
@@ -256,65 +250,122 @@ Deno.test("should be available regex flags", () => {
   assertEquals(
     new Lexer({
       A: /[a-z]+/iyu,
-    }).lex("Abc"),
+    }).analyze("Abc"),
     {
-      done: true,
-      tokens: [{
-        literal: "Abc",
-        offset: 0,
+      values: [{
         type: "A",
+        value: "Abc",
       }],
-      offset: 3,
     },
   );
 });
 
-Deno.test("should override offset", () => {
+Deno.test("should return complex tokens", () => {
+  const enum Type {
+    Const = "const",
+    Let = "lest",
+    Var = "var",
+    Eq = "eq",
+    Number = "number",
+    SEMICOLON = ";",
+    PLUS = "+",
+    LParen = "(",
+    RParen = ")",
+    WS = " ",
+  }
   const lexer = new Lexer({
-    LET: "let",
-    WS: /\s+/,
+    [Type.Const]: "const",
+    [Type.Let]: "let",
+    [Type.Eq]: "=",
+    [Type.WS]: { pattern: /\s+/, ignore: true },
+    [Type.LParen]: "(",
+    [Type.RParen]: ")",
+    [Type.Number]: /[1-9][0-9]*/,
+    [Type.SEMICOLON]: ";",
+    [Type.Var]: "var",
+    [Type.PLUS]: "+",
   });
 
-  const result = lexer.lex("let ", {
-    offset: lexer.lex("let").offset,
-  });
-
-  assertEquals(result, {
-    done: true,
-    tokens: [{
-      type: "WS",
-      offset: 3,
-      literal: " ",
-    }],
-    offset: 4,
-  });
+  assertEquals(
+    lexer.analyze(`const a = 1;
+let b = 2;
+var c = a + b;
+console.log(c)
+`),
+    {
+      values: [
+        { type: Type.Const, value: "const" },
+        { type: "Unknown", value: "a" },
+        { type: Type.Eq, value: "=" },
+        { type: Type.Number, value: "1" },
+        { type: Type.SEMICOLON, value: ";" },
+        { type: Type.Let, value: "let" },
+        { type: "Unknown", value: "b" },
+        { type: Type.Eq, value: "=" },
+        { type: Type.Number, value: "2" },
+        { type: Type.SEMICOLON, value: ";" },
+        { type: Type.Var, value: "var" },
+        { type: "Unknown", value: "c" },
+        { type: Type.Eq, value: "=" },
+        { type: "Unknown", value: "a" },
+        { type: Type.PLUS, value: "+" },
+        { type: "Unknown", value: "b" },
+        { type: Type.SEMICOLON, value: ";" },
+        { type: "Unknown", value: "console.log" },
+        { type: Type.LParen, value: "(" },
+        { type: "Unknown", value: "c" },
+        { type: Type.RParen, value: ")" },
+      ],
+    },
+  );
 });
 
-Deno.test("should end of EOF", () => {
-  const lexer = new Lexer({
-    ["<EOF>"]: EOF,
-    A: "abc",
-  });
+// Deno.test("should override offset", () => {
+//   const lexer = new Lexer({
+//     LET: "let",
+//     WS: /\s+/,
+//   });
 
-  assertEquals(lexer.lex("abc"), {
-    done: true,
-    tokens: [
-      { literal: "abc", offset: 0, type: "A" },
-      { literal: "", offset: 3, type: "<EOF>" },
-    ],
-    offset: 3,
-  });
-});
+//   const result = lexer.lex("let ", {
+//     offset: lexer.lex("let").offset,
+//   });
 
-Deno.test("should not includes end of EOF when the lex is failed", () => {
-  const lexer = new Lexer({
-    ["<EOF>"]: EOF,
-    A: "abc",
-  });
+//   assertEquals(result, {
+//     done: true,
+//     tokens: [{
+//       type: "WS",
+//       offset: 3,
+//       literal: " ",
+//     }],
+//     offset: 4,
+//   });
+// });
 
-  assertEquals(lexer.lex("ab"), {
-    done: false,
-    tokens: [],
-    offset: 0,
-  });
-});
+// Deno.test("should end of EOF", () => {
+//   const lexer = new Lexer({
+//     ["<EOF>"]: EOF,
+//     A: "abc",
+//   });
+
+//   assertEquals(lexer.lex("abc"), {
+//     done: true,
+//     tokens: [
+//       { literal: "abc", offset: 0, type: "A" },
+//       { literal: "", offset: 3, type: "<EOF>" },
+//     ],
+//     offset: 3,
+//   });
+// });
+
+// Deno.test("should not includes end of EOF when the lex is failed", () => {
+//   const lexer = new Lexer({
+//     ["<EOF>"]: EOF,
+//     A: "abc",
+//   });
+
+//   assertEquals(lexer.lex("ab"), {
+//     done: false,
+//     tokens: [],
+//     offset: 0,
+//   });
+// });

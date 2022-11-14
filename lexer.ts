@@ -1,54 +1,26 @@
-import { filterValues, isRegExp, isString, maxBy, sortBy } from "./deps.ts";
-import { uniqueChar } from "./utils.ts";
+import {
+  type ExtendArg,
+  filterValues,
+  isRegExp,
+  isString,
+  mapValues,
+  maxBy,
+} from "./deps.ts";
+import { assertRegExpFrag, uniqueChar } from "./utils.ts";
+import type {
+  AnalyzeResult,
+  Grammar,
+  RuleMap,
+  RuleOptions,
+  Token,
+} from "./types.ts";
+import { CursorImpl } from "./cursor.ts";
 
-/** Result of lex. */
-export interface LexResult<T extends string = string> {
-  /** Token streams. */
-  tokens: Token<T>[];
-
-  /** Whether the lex has done or not. */
-  done: boolean;
-
-  /** Final offset. Same as the last index of the last token. */
-  offset: number;
-}
-
-/** Token object, a result of matching an individual lexing rule. */
-export interface Token<T extends string = string> {
-  /** Defined token type. */
-  type: T;
-
-  /** Actual token literal value. */
-  literal: string;
-
-  /** Start index of the matched in the input. */
-  offset: number;
-}
-
-/** Map of token type and token patterns. */
-export type TokenMap<T extends string = string> = {
-  readonly [k in T]: string | RegExp | LexRule | typeof EOF;
-};
-
-/** Lex rule. */
-export interface LexRule {
-  /** Token matching pattern. */
-  readonly pattern: string | RegExp;
-
-  /** Whether the token ignore or not.  */
-  readonly ignore?: boolean;
-}
-
-/** The lex options. */
-export interface LexOptions {
-  /** Initial offset index.
-   * @default 0
-   */
-  readonly offset?: number;
-}
+const DEFAULT_UNKNOWN = "Unknown";
 
 /** Lexer Object.
  *
+ * @example
  * ```ts
  * import { Lexer } from "https://deno.land/x/lexer@$VERSION/mod.ts";
  * import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
@@ -78,120 +50,114 @@ export interface LexOptions {
  *   offset: 20,
  * });
  * ```
- *
- * @throws Error: When the regex pattern has `g` flag.
+ * @throws {Error} When the regex pattern has `g` flag.
  */
-export class Lexer<T extends string> {
-  #strings: StringContext[];
-  #regexes: RegexContext[];
-  #eofType: string | undefined;
+export class Lexer {
+  #ruleMap: Rules;
 
-  constructor(private tokenMap: TokenMap<T>) {
-    const eofRecord = filterValues(this.tokenMap, isEOF);
-    this.#eofType = findEOF(eofRecord as never);
+  #unknown = DEFAULT_UNKNOWN;
 
-    const tokenMapExceptEof = filterValues(
-      this.tokenMap as never,
-      (value) => !isEOF(value),
-    ) as Record<string, string | RegExp | LexRule>;
+  constructor(grammar: Grammar) {
+    const rules = mapValues(grammar, resolveOptions);
+    this.#ruleMap = preProcess(rules);
 
-    const contexts = Object.entries(tokenMapExceptEof).map(toContext);
-    this.#strings = sortBy(
-      contexts.filter(({ pattern }) => isString(pattern)) as StringContext[],
-      ({ pattern }) => pattern,
-    ).reverse();
-
-    const regexContexts = contexts.filter(({ pattern }) =>
-      isRegExp(pattern)
-    ) as RegexContext[];
-
-    regexContexts.forEach(({ pattern }) => assertRegExpFrag(pattern));
-
-    this.#regexes = regexContexts.map((
-      { pattern, ...rest },
-    ) => ({
-      ...rest,
-      pattern: new RegExp(pattern, uniqueChar("y", pattern.flags)),
-    }));
+    this.#ruleMap.regex.forEach(({ pattern }) => assertRegExpFrag(pattern));
   }
 
   /** Analyze input lexically. */
-  lex(input: string, { offset = 0 }: LexOptions = {}): LexResult<T> {
-    const tokens: Token<T>[] = [];
+  analyze(input: string): AnalyzeResult {
+    const cursor = new CursorImpl(0);
+    const tokens: AnalyzeResult["values"] = [];
+    const errorStack: Token[] = [];
 
-    function addToken(
-      { type, ignore, literal }: Readonly<Omit<TokenContext, "pattern">>,
-    ): void {
-      if (!ignore) {
-        tokens.push({ type: type as T, literal, offset });
-      }
-      offset += literal.length;
-    }
-
-    while (offset < input.length) {
-      const characters = input.substring(offset);
-      const tokenFromString = this.#strings.find(({ pattern }) =>
-        characters.startsWith(pattern)
-      );
-
-      if (tokenFromString) {
-        addToken({ ...tokenFromString, literal: tokenFromString.pattern });
-        continue;
-      }
-
-      this.#regexes.forEach(({ pattern }) => {
-        pattern.lastIndex = offset;
+    while (cursor.current < input.length) {
+      const result = resolveRule({
+        string: stringResolver,
+        regex: regexResolver,
+      }, {
+        input,
+        offset: cursor.current,
+        ...this.#ruleMap,
       });
 
-      const tokenFromRegex = getTokenByRegex(input, this.#regexes);
-
-      if (tokenFromRegex) {
-        addToken(tokenFromRegex);
+      if (result) {
+        const errorToken = foldToken(errorStack);
+        errorStack.length = 0;
+        if (errorToken) {
+          tokens.push(errorToken);
+        }
+        if (!result.ignore) {
+          tokens.push({
+            type: result.type,
+            value: result.resolved,
+          });
+        }
+        cursor.next(result.resolved.length);
         continue;
       }
 
-      break;
+      const current = input.at(cursor.current);
+      cursor.next();
+
+      if (current) {
+        errorStack.push({
+          type: this.#unknown,
+          value: current,
+        });
+      }
     }
 
-    const done: boolean = input.length <= offset;
-    if (done && isString(this.#eofType)) {
-      addToken({ type: this.#eofType, literal: "" });
+    const errorToken = foldToken(errorStack);
+    errorStack.length = 0;
+    if (errorToken) {
+      tokens.push(errorToken);
     }
 
     return {
-      tokens,
-      done,
-      offset,
+      values: tokens,
     };
   }
 }
 
-type TokenContext = Omit<Token, "offset"> & Context;
+function foldToken(tokens: readonly Token[]): Token | void {
+  if (!tokens.length) return;
+
+  const token = Array.from(tokens).reduce((acc, cur) => {
+    return {
+      type: cur.type,
+      value: acc.value + cur.value,
+    };
+  });
+
+  return token;
+}
 
 function getTokenByRegex(
   input: string,
-  ctx: RegexContext[],
-): TokenContext | undefined {
-  const tokens: TokenContext[] = [];
+  ctx: Rules["regex"],
+): ResolveResult | undefined {
+  const tokens: ResolveResult[] = [];
 
   ctx.forEach(({ pattern, ...rest }) => {
     const result = pattern.exec(input);
 
     if (result && result[0]) {
-      tokens.unshift({
+      tokens.push({
         ...rest,
         pattern,
-        literal: result[0],
+        resolved: result[0],
       });
     }
   });
 
-  const maybeToken = maxBy(tokens, ({ literal }) => literal);
+  const maybeToken = maxBy(tokens, ({ resolved }) => resolved);
 
   return maybeToken;
 }
 
-export function resolveOptions(options: string | RegExp | LexRule): LexRule {
+export function resolveOptions(
+  options: string | RegExp | RuleOptions,
+): RuleOptions {
   if (isString(options) || isRegExp(options)) {
     return {
       pattern: options,
@@ -200,46 +166,114 @@ export function resolveOptions(options: string | RegExp | LexRule): LexRule {
   return options;
 }
 
-interface Context<T extends PropertyKey = string> extends LexRule {
-  type: T;
+interface ResolverContext {
+  input: string;
+  offset: number;
 }
 
-interface StringContext extends Context {
-  pattern: string;
-}
+function resolveRule(
+  resolvers: ResolverMap,
+  context: ResolverContext & Rules,
+): ResolveResult | void {
+  const r1 = resolvers.string(context, context.string);
 
-interface RegexContext extends Context {
-  pattern: RegExp;
-}
+  if (r1) {
+    return r1;
+  }
 
-function toContext(
-  [type, options]: [string, string | RegExp | LexRule],
-): Context {
-  return {
-    ...resolveOptions(options),
-    type,
-  };
-}
+  const r2 = resolvers.regex(context, context.regex);
 
-function assertRegExpFrag(regExp: RegExp): asserts regExp is RegExp {
-  if (regExp.global) {
-    throw new Error(
-      `Global flag is not allowed. ${regExp}`,
-    );
+  if (r2) {
+    return r2;
   }
 }
 
-/** Special EOF match pattern. */
-export const EOF = Symbol.for("EOF");
+type TypeRuleMap = {
+  [k in keyof RuleMap]: { pattern: RuleMap[k] } & RuleOptions;
+};
 
-function findEOF(tokenMap: TokenMap): string | undefined {
-  const node = Object.entries(tokenMap).findLast(([_, pattern]) =>
-    isEOF(pattern)
-  );
+type Rules = {
+  [k in keyof TypeRuleMap]: (MatchContext & TypeRuleMap[k])[];
+};
 
-  return node?.[0];
+type ResolverMap = {
+  [k in keyof Rules]: ExtendArg<Resolver, Rules[k]>;
+};
+
+interface MatchContext extends RuleOptions {
+  type: string;
 }
 
-function isEOF(value: unknown): value is typeof EOF {
-  return value === EOF;
+interface ResolveResult extends MatchContext {
+  resolved: string;
 }
+
+interface Resolver {
+  (context: ResolverContext): ResolveResult | void;
+}
+
+interface PreProcessor {
+  (rules: Record<string, RuleOptions>): Rules;
+}
+
+const preProcess: PreProcessor = (rules) => {
+  const stringRules = filterValues(
+    rules,
+    ({ pattern }) => isString(pattern),
+  ) as Record<string, TypeRuleMap["string"]>;
+
+  const string = Object.entries(stringRules).map(([type, value]) => {
+    return {
+      type,
+      ...value,
+    };
+  }).toSorted((a, b) => b.pattern.length - a.pattern.length);
+
+  const regexRules = filterValues(
+    rules,
+    ({ pattern }) => isRegExp(pattern),
+  ) as Record<string, TypeRuleMap["regex"]>;
+
+  const result = Object.entries(regexRules).map(([type, value]) => {
+    return {
+      type,
+      ...value,
+    };
+  });
+
+  const regex = result.map((
+    { pattern, ...rest },
+  ) => ({
+    ...rest,
+    pattern: new RegExp(pattern, uniqueChar("y", pattern.flags)),
+  }));
+
+  return {
+    string,
+    regex,
+  };
+};
+
+const stringResolver: ResolverMap["string"] = ({ input, offset }, rules) => {
+  const characters = input.substring(offset);
+
+  const result = rules.find(({ pattern }) => characters.startsWith(pattern));
+
+  if (result) {
+    return { ...result, resolved: result.pattern };
+  }
+};
+
+const regexResolver: ResolverMap["regex"] = ({ input, offset }, rules) => {
+  const regex = rules.map(({ pattern, ...rest }) => {
+    pattern.lastIndex = offset;
+    return {
+      ...rest,
+      pattern,
+    };
+  });
+
+  const tokenFromRegex = getTokenByRegex(input, regex);
+
+  return tokenFromRegex;
+};
