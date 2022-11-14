@@ -22,7 +22,7 @@ export interface LexerOptions {
   /** Unknown token type. If the input stream does not match any grammar, set the token as this type.
    * @default "UNKNOWN"
    */
-  readonly unknownType?: string;
+  readonly unknown?: string;
 }
 
 const DEFAULT_UNKNOWN = "UNKNOWN";
@@ -73,7 +73,7 @@ export class Lexer {
     this.#ruleMap = preProcess(rules);
 
     this.#ruleMap.regex.forEach($(prop("pattern"), assertRegExpFrag));
-    this.#unknown = options?.unknownType ?? DEFAULT_UNKNOWN;
+    this.#unknown = options?.unknown ?? DEFAULT_UNKNOWN;
   }
 
   /** Analyze input lexically. */

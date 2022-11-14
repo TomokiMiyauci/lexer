@@ -32,7 +32,7 @@ Deno.test("should return tokens with merged unknown token type", () => {
 });
 
 Deno.test("should change unknown tokens", () => {
-  const lexer = new Lexer({}, { unknownType: "?" });
+  const lexer = new Lexer({}, { unknown: "?" });
   const result = lexer.analyze(` a`);
 
   assertEquals(result, {
@@ -276,6 +276,7 @@ Deno.test("should return complex tokens", () => {
     LParen = "(",
     RParen = ")",
     WS = " ",
+    Unknown = "???",
   }
   const lexer = new Lexer({
     [Type.Const]: "const",
@@ -288,7 +289,7 @@ Deno.test("should return complex tokens", () => {
     [Type.SEMICOLON]: ";",
     [Type.Var]: "var",
     [Type.PLUS]: "+",
-  });
+  }, { unknown: Type.Unknown });
 
   assertEquals(
     lexer.analyze(`const a = 1;
@@ -299,25 +300,25 @@ console.log(c)
     {
       values: [
         { type: Type.Const, value: "const" },
-        { type: "UNKNOWN", value: "a" },
+        { type: Type.Unknown, value: "a" },
         { type: Type.Eq, value: "=" },
         { type: Type.Number, value: "1" },
         { type: Type.SEMICOLON, value: ";" },
         { type: Type.Let, value: "let" },
-        { type: "UNKNOWN", value: "b" },
+        { type: Type.Unknown, value: "b" },
         { type: Type.Eq, value: "=" },
         { type: Type.Number, value: "2" },
         { type: Type.SEMICOLON, value: ";" },
         { type: Type.Var, value: "var" },
-        { type: "UNKNOWN", value: "c" },
+        { type: Type.Unknown, value: "c" },
         { type: Type.Eq, value: "=" },
-        { type: "UNKNOWN", value: "a" },
+        { type: Type.Unknown, value: "a" },
         { type: Type.PLUS, value: "+" },
-        { type: "UNKNOWN", value: "b" },
+        { type: Type.Unknown, value: "b" },
         { type: Type.SEMICOLON, value: ";" },
-        { type: "UNKNOWN", value: "console.log" },
+        { type: Type.Unknown, value: "console.log" },
         { type: Type.LParen, value: "(" },
-        { type: "UNKNOWN", value: "c" },
+        { type: Type.Unknown, value: "c" },
         { type: Type.RParen, value: ")" },
         EofToken,
       ],
