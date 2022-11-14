@@ -13,6 +13,16 @@ Deno.test("should return done true when the input is empty string", () => {
   });
 });
 
+Deno.test("should change eof token", () => {
+  const lexer = new Lexer({}, { eof: "<eof>" });
+
+  const result = lexer.analyze(``);
+
+  assertEquals(result, {
+    values: [{ type: "<eof>", value: "" }],
+  });
+});
+
 Deno.test("should return tokens with unknown token type", () => {
   const lexer = new Lexer({});
   const result = lexer.analyze(` `);

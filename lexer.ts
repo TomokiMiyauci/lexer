@@ -23,6 +23,12 @@ export interface LexerOptions {
    * @default "UNKNOWN"
    */
   readonly unknown?: string;
+
+  /** End of file token. Set the token to eod of token stream as this type.
+   * Actual token `value` field will be empty string.
+   * @default "EOF"
+   */
+  readonly eof?: string;
 }
 
 const DEFAULT_UNKNOWN = "UNKNOWN";
@@ -66,7 +72,7 @@ export class Lexer {
   #ruleMap: Rules;
 
   #unknown: string;
-  #eof: string = DEFAULT_EOF;
+  #eof: string;
 
   constructor(grammar: Grammar, options?: LexerOptions) {
     const rules = mapValues(grammar, resolveOptions);
@@ -74,6 +80,7 @@ export class Lexer {
 
     this.#ruleMap.regex.forEach($(prop("pattern"), assertRegExpFrag));
     this.#unknown = options?.unknown ?? DEFAULT_UNKNOWN;
+    this.#eof = options?.eof ?? DEFAULT_EOF;
   }
 
   /** Analyze input lexically. */
