@@ -8,13 +8,18 @@ import {
   maxBy,
   prop,
 } from "./deps.ts";
-import { assertRegExpFrag, foldToken, uniqueChar } from "./utils.ts";
+import {
+  assertRegExpFrag,
+  columnLine,
+  foldByType,
+  uniqueChar,
+} from "./utils.ts";
 import type {
   AnalyzeResult,
+  FragmentToken,
   Grammar,
   RuleMap,
   RuleOptions,
-  Token,
 } from "./types.ts";
 import { CursorImpl } from "./cursor.ts";
 
@@ -96,17 +101,8 @@ export class Lexer {
   /** Analyze input lexically. */
   analyze(input: string): AnalyzeResult {
     const cursor = new CursorImpl(0);
-    const tokens: Token[] = [];
-    const errorStack: Token[] = [];
-
-    function dumpErrorToken(): void {
-      const errorToken = foldToken(errorStack);
-      errorStack.length = 0;
-
-      if (errorToken) {
-        tokens.push(errorToken);
-      }
-    }
+    const tokens: FragmentToken[] = [];
+    const ignoreTypes = new Set<string>();
 
     while (cursor.current < input.length) {
       const offset = cursor.current;
@@ -120,15 +116,10 @@ export class Lexer {
       });
 
       if (result) {
-        dumpErrorToken();
-
-        if (!result.ignore) {
-          tokens.push({
-            type: result.type,
-            value: result.resolved,
-            offset,
-          });
+        if (result.ignore) {
+          ignoreTypes.add(result.type);
         }
+        tokens.push({ type: result.type, value: result.resolved, offset });
         cursor.next(result.resolved.length);
         continue;
       }
@@ -137,17 +128,19 @@ export class Lexer {
       cursor.next();
 
       if (current) {
-        errorStack.push({ type: this.#unknown, value: current, offset });
+        tokens.push({ type: this.#unknown, value: current, offset });
       }
     }
-
-    dumpErrorToken();
 
     if (this.#enableEof) {
       tokens.push({ type: this.#eof, value: "", offset: cursor.current });
     }
 
-    return { values: tokens };
+    const values = foldByType(columnLine(tokens), this.#unknown).filter((
+      token,
+    ) => !ignoreTypes.has(token.type));
+
+    return { values };
   }
 }
 

@@ -1,5 +1,5 @@
 import { distinct } from "./deps.ts";
-import type { Token } from "./types.ts";
+import type { FragmentToken, Token } from "./types.ts";
 
 export function uniqueChar(...args: readonly string[]): string {
   const characters = args.reduce((acc, cur) => acc + cur, "");
@@ -15,18 +15,46 @@ export function assertRegExpFrag(regExp: RegExp): asserts regExp is RegExp {
   }
 }
 
-export function foldToken(
-  input: Iterable<Token>,
-): (Token) | void {
-  const tokens = Array.from(input);
+export function countLineBreak(input: string): number {
+  const matches = input.match(/\n/g);
 
-  if (!tokens.length) return;
+  return matches && matches.length || 0;
+}
 
-  const token = Array.from(tokens).reduceRight((acc, cur) => ({
-    type: cur.type,
-    value: cur.value + acc.value,
-    offset: cur.offset,
-  }));
+export function foldByType(input: Iterable<Token>, type: string): Token[] {
+  return Array.from(input).reduceRight(([first, ...rest], cur) => {
+    if (!first) return [cur, ...rest];
+    if (first.type !== type || cur.type !== type) {
+      return [cur, first, ...rest];
+    }
 
-  return token;
+    const value = cur.value + first.value;
+    const token: Token = {
+      type,
+      value,
+      offset: cur.offset,
+      column: cur.column,
+      line: cur.line,
+    };
+
+    return [token, ...rest];
+  }, [] as Token[]);
+}
+
+export function* columnLine(input: Iterable<FragmentToken>): Iterable<Token> {
+  let line = 1;
+  let column = 0;
+
+  for (const { value, ...rest } of input) {
+    const lineBreaks = countLineBreak(value);
+
+    yield { value, ...rest, line, column };
+
+    if (lineBreaks) {
+      column = 0;
+      line += lineBreaks;
+    } else {
+      column += value.length;
+    }
+  }
 }
