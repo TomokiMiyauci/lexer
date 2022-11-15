@@ -1,6 +1,7 @@
 import {
   $,
   type ExtendArg,
+  isFalse,
   isRegExp,
   isString,
   mapValues,
@@ -26,9 +27,13 @@ export interface LexerOptions {
 
   /** End of file token. Set the token to eod of token stream as this type.
    * Actual token `value` field will be empty string.
+   *
+   * - `string` - Set EOF token as this type.
+   * - `true` - Set EOF token as default type.
+   * - `false` - No set EOF token.
    * @default "EOF"
    */
-  readonly eof?: string;
+  readonly eof?: string | boolean;
 }
 
 const DEFAULT_UNKNOWN = "UNKNOWN";
@@ -73,14 +78,19 @@ export class Lexer {
 
   #unknown: string;
   #eof: string;
+  #enableEof: boolean;
 
   constructor(grammar: Grammar, options?: LexerOptions) {
+    const { eof: _eof = DEFAULT_EOF, unknown = DEFAULT_UNKNOWN } = options ??
+      {};
+    const eof = isString(_eof) ? _eof : DEFAULT_EOF;
     const rules = mapValues(grammar, resolveOptions);
-    this.#ruleMap = preProcess(rules);
 
+    this.#ruleMap = preProcess(rules);
     this.#ruleMap.regex.forEach($(prop("pattern"), assertRegExpFrag));
-    this.#unknown = options?.unknown ?? DEFAULT_UNKNOWN;
-    this.#eof = options?.eof ?? DEFAULT_EOF;
+    this.#unknown = unknown;
+    this.#eof = eof;
+    this.#enableEof = !isFalse(_eof);
   }
 
   /** Analyze input lexically. */
@@ -127,7 +137,10 @@ export class Lexer {
     }
 
     dumpErrorToken();
-    tokens.push({ type: this.#eof, value: "" });
+
+    if (this.#enableEof) {
+      tokens.push({ type: this.#eof, value: "" });
+    }
 
     return { values: tokens };
   }

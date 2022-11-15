@@ -23,6 +23,26 @@ Deno.test("should change eof token", () => {
   });
 });
 
+Deno.test("should disabled eof token", () => {
+  const lexer = new Lexer({}, { eof: false });
+
+  const result = lexer.analyze(``);
+
+  assertEquals(result, {
+    values: [],
+  });
+});
+
+Deno.test("should enable eof token", () => {
+  const lexer = new Lexer({}, { eof: true });
+
+  const result = lexer.analyze(``);
+
+  assertEquals(result, {
+    values: [{ type: "EOF", value: "" }],
+  });
+});
+
 Deno.test("should return tokens with unknown token type", () => {
   const lexer = new Lexer({});
   const result = lexer.analyze(` `);
