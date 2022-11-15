@@ -8,7 +8,7 @@ import {
   maxBy,
   prop,
 } from "./deps.ts";
-import { assertRegExpFrag, uniqueChar } from "./utils.ts";
+import { assertRegExpFrag, foldToken, uniqueChar } from "./utils.ts";
 import type {
   AnalyzeResult,
   Grammar,
@@ -96,7 +96,7 @@ export class Lexer {
   /** Analyze input lexically. */
   analyze(input: string): AnalyzeResult {
     const cursor = new CursorImpl(0);
-    const tokens: AnalyzeResult["values"] = [];
+    const tokens: Token[] = [];
     const errorStack: Token[] = [];
 
     function dumpErrorToken(): void {
@@ -109,6 +109,7 @@ export class Lexer {
     }
 
     while (cursor.current < input.length) {
+      const offset = cursor.current;
       const result = resolveRule({
         string: stringResolver,
         regex: regexResolver,
@@ -122,41 +123,32 @@ export class Lexer {
         dumpErrorToken();
 
         if (!result.ignore) {
-          tokens.push({ type: result.type, value: result.resolved });
+          tokens.push({
+            type: result.type,
+            value: result.resolved,
+            offset,
+          });
         }
         cursor.next(result.resolved.length);
         continue;
       }
 
-      const current = input.at(cursor.current);
+      const current = input.at(offset);
       cursor.next();
 
       if (current) {
-        errorStack.push({ type: this.#unknown, value: current });
+        errorStack.push({ type: this.#unknown, value: current, offset });
       }
     }
 
     dumpErrorToken();
 
     if (this.#enableEof) {
-      tokens.push({ type: this.#eof, value: "" });
+      tokens.push({ type: this.#eof, value: "", offset: cursor.current });
     }
 
     return { values: tokens };
   }
-}
-
-function foldToken(tokens: readonly Token[]): Token | void {
-  if (!tokens.length) return;
-
-  const token = Array.from(tokens).reduce((acc, cur) => {
-    return {
-      type: cur.type,
-      value: acc.value + cur.value,
-    };
-  });
-
-  return token;
 }
 
 function getTokenByRegex(
@@ -186,9 +178,7 @@ function resolveOptions(
   options: string | RegExp | RuleOptions,
 ): RuleOptions {
   if (isString(options) || isRegExp(options)) {
-    return {
-      pattern: options,
-    };
+    return { pattern: options };
   }
   return options;
 }
