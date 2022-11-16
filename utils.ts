@@ -15,12 +15,6 @@ export function assertRegExpFrag(regExp: RegExp): asserts regExp is RegExp {
   }
 }
 
-export function countLineBreak(input: string): number {
-  const matches = input.match(/\n/g);
-
-  return matches && matches.length || 0;
-}
-
 export function foldByType(input: Iterable<Token>, type: string): Token[] {
   return Array.from(input).reduceRight(([first, ...rest], cur) => {
     if (!first) return [cur, ...rest];
@@ -29,13 +23,7 @@ export function foldByType(input: Iterable<Token>, type: string): Token[] {
     }
 
     const value = cur.value + first.value;
-    const token: Token = {
-      type,
-      value,
-      offset: cur.offset,
-      column: cur.column,
-      line: cur.line,
-    };
+    const token: Token = { ...cur, type, value };
 
     return [token, ...rest];
   }, [] as Token[]);
@@ -46,15 +34,19 @@ export function* columnLine(input: Iterable<FragmentToken>): Iterable<Token> {
   let column = 0;
 
   for (const { value, ...rest } of input) {
-    const lineBreaks = countLineBreak(value);
-
     yield { value, ...rest, line, column };
 
-    if (lineBreaks) {
-      column = 0;
-      line += lineBreaks;
-    } else {
-      column += value.length;
+    for (const char of value) {
+      if (isLineBreak(char)) {
+        column = 0;
+        line++;
+      } else {
+        column += char.length;
+      }
     }
   }
+}
+
+function isLineBreak(input: string): input is "\n" {
+  return input === "\n";
 }
