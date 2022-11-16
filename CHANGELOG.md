@@ -1,3 +1,25 @@
+# [1.0.0-beta.2](https://github.com/TomokiMiyauci/lexer/compare/1.0.0-beta.1...1.0.0-beta.2) (2022-11-16)
+
+
+### Features
+
+* change lexer interface, error handling ([2da83ca](https://github.com/TomokiMiyauci/lexer/commit/2da83ca2c966106a93924e29b22ffa4763fbb55a))
+* **lexer:** add changing eof token type ([a17737a](https://github.com/TomokiMiyauci/lexer/commit/a17737ab5490503bdd506529ba196c117f12fae2))
+* **lexer:** add disabled eof token ([9e83d49](https://github.com/TomokiMiyauci/lexer/commit/9e83d498b8edeb1b7953e2c0fae9c20b86608e62))
+* **lexer:** add eof token at end of token stream by default ([d5632a1](https://github.com/TomokiMiyauci/lexer/commit/d5632a1899f95b8c4b78816bc0e923f6cd15660e))
+* **lexer:** add lexer option interface and change unknown type ([ad1d462](https://github.com/TomokiMiyauci/lexer/commit/ad1d462f55e17f5f205eef0e6ee999e379520bc4))
+* **lexer:** add offset info to token ([72c46c6](https://github.com/TomokiMiyauci/lexer/commit/72c46c6bdc963b49581a972b830bad4c1fae0abe))
+* **lexer:** add position info to result token ([826f3a7](https://github.com/TomokiMiyauci/lexer/commit/826f3a7f1eef76361fd72e9b3b95f09d97a8680b))
+* **lexer:** change default unknown type ([d12119e](https://github.com/TomokiMiyauci/lexer/commit/d12119ed2d055bc8197b981983d98383063c243b))
+* **lexer:** rename interface field name `unknownType` to `unknown` ([6836460](https://github.com/TomokiMiyauci/lexer/commit/683646085ecd95efd4ba26e0691ab5accb2a4d51))
+* **types:** rename interface and alias ([a00af6a](https://github.com/TomokiMiyauci/lexer/commit/a00af6a7976e2dcaf5e08a1fc35df3a5d12d9c1d))
+
+
+### Performance Improvements
+
+* **lexer:** improve performance of string patterns ([4867e0e](https://github.com/TomokiMiyauci/lexer/commit/4867e0e9bd507d2ca188cdf20f70efa8df37b787))
+* **utils:** change line break matching algorism ([d28e098](https://github.com/TomokiMiyauci/lexer/commit/d28e098023c5bd744a81c7d56358018ab0f3827b))
+
 # 1.0.0-beta.1 (2022-09-02)
 
 
