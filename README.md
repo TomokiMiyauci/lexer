@@ -11,10 +11,9 @@ Lexical analyzer for JavaScript.
 ## Features
 
 - Tiny
-- Simple / Lean
 - Regex ready
 - Maximum munch algorithm
-- Composable
+- Fast
 
 ## Basic usage
 
@@ -31,6 +30,7 @@ enum TokenType {
   ASSIGN = "Assign",
   PLUS = "Plus",
   SEMICOLON = "Semicolon",
+  WS = " ",
 }
 
 const lexer = new Lexer({
@@ -40,23 +40,17 @@ const lexer = new Lexer({
   [TokenType.ASSIGN]: "=",
   [TokenType.PLUS]: "+",
   [TokenType.SEMICOLON]: ";",
-
-  "WS": {
-    pattern: /[\s\t]+/,
-    ignore: true,
-  },
+  [TokenType.WS]: { pattern: /[\s\t]+/, ignore: true },
 });
 const input = `let sum = 100 + 200;`;
-const result = lexer.lex(input);
+const result = lexer.analyze(input);
 assertEquals(result, {
-  tokens: [
-    { type: "Let", literal: "let", offset: 0 },
-    { type: "Ident", literal: "sum", offset: 3 },
+  values: [
+    { type: "Let", value: "let", offset: 0, column: 0, line: 1 },
+    { type: "Ident", value: "sum", offset: 3, column: 3, line: 1 },
     // ...,
-    { type: "Semicolon", literal: ";", offset: 19 },
+    { type: "Semicolon", value: ";", offset: 19, column: 19, line: 1 },
   ],
-  done: true,
-  offset: 20,
 });
 ```
 
@@ -75,9 +69,9 @@ Several expressions are supported for token patterns.
 String pattern recognizes strings as they are as patterns.
 
 ```ts
-import { TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 
-const tokenMap: TokenMap = {
+const rules: Rules = {
   IMPORT: "import",
   FROM: "from",
   SEMICOLON: ";",
@@ -92,8 +86,8 @@ etc., and are the most readable and perform the best.
 The regex pattern defines a regular expression as a `RegExp` object.
 
 ```ts
-import { TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
-const tokenMap: TokenMap = {
+import { Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+const rules: Rules = {
   IDENT: /[a-z]+/i,
   NUMBER: /\d+/,
 };
@@ -102,8 +96,8 @@ const tokenMap: TokenMap = {
 Note that regular expressions cannot be defined as string patterns.
 
 ```ts
-import { TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
-const tokenMap: TokenMap = {
+import { Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+const rules: Rules = {
   NOT_REGEX_OBJECT: "\\s+",
 };
 ```
@@ -123,13 +117,10 @@ For more fine-grained control over the generation of tokens, optional patterns
 can be defined.
 
 ```ts
-import { TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 
-const tokenMap: TokenMap = {
-  WS: {
-    pattern: /[\s\t]+/,
-    ignore: true,
-  },
+const rules: Rules = {
+  WS: { pattern: /[\s\t]+/, ignore: true },
 };
 ```
 
@@ -143,44 +134,48 @@ added to the generated token stream.
 
 ## EOF token
 
-Scan inputs from left to right. Therefore, EOF cannot be represented as a string
-or regular expression.
-
-If you want an EOF token at the end of your token stream, you must add the EOF
-symbol to your pattern.
-
-The lexer treats only EOF symbols "specially".
+The EOF token is automatically added to the end of the token stream.
 
 ```ts
-import {
-  EOF,
-  Lexer,
-  TokenMap,
-} from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Lexer, Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
 
-const tokenMap: TokenMap = {
-  "<EOF>": EOF, // or Symbol("EOF"),
-};
-const { tokens } = new Lexer(tokenMap).lex("");
-assertEquals(tokens, [{ type: "<EOF>", literal: "", offset: 0 }]);
+const { values } = new Lexer({}).analyze("");
+assertEquals(values, [{
+  type: "EOF",
+  value: "",
+  offset: 0,
+  column: 0,
+  line: 1,
+}]);
 ```
 
-The EOF token will only be included if all inputs can be parsed.
+The EOF token is automatically added to the end of the token stream.
+
+To customize the type of EOF token, change the `eof` option.
 
 ```ts
-import {
-  EOF,
-  Lexer,
-  TokenMap,
-} from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Lexer, Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
 
-const tokenMap: TokenMap = {
-  "<EOF>": EOF,
-};
-const result = new Lexer(tokenMap).lex("a");
-assertEquals(result, { tokens: [], done: false, offset: 0 });
+const { values } = new Lexer({}, { eof: "<eof>" }).analyze("");
+assertEquals(values, [{
+  type: "<eof>",
+  value: "",
+  offset: 0,
+  column: 0,
+  line: 1,
+}]);
+```
+
+If you do not want the EOF token to be added, set the `eof` option to `false`.
+
+```ts
+import { Lexer, Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
+
+const { values } = new Lexer({}, { eof: false }).analyze("");
+assertEquals(values, []);
 ```
 
 ## Maximum munch
@@ -191,18 +186,18 @@ This identifies the longest matching pattern as the token, **not** in the order
 of definition in the token map.
 
 ```ts
-import { Lexer, TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Lexer, Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
 
-const tokenMap: TokenMap = {
-  "A": "A",
-  "AAA": "AAA",
-  "AA": "AA",
+const rules: Rules = {
+  A: "A",
+  AAA: "AAA",
+  AA: "AA",
 };
-const { tokens } = new Lexer(tokenMap).lex("AAAAA");
-assertEquals(tokens, [
-  { type: "AAA", literal: "AAA", offset: 0 },
-  { type: "AA", literal: "AA", offset: 3 },
+const { values } = new Lexer(rules).analyze("AAAAA");
+assertEquals(values, [
+  { type: "AAA", value: "AAA", offset: 0, column: 0, line: 1 },
+  { type: "AA", value: "AA", offset: 3, column: 3, line: 1 },
 ]);
 ```
 
@@ -217,17 +212,17 @@ String patterns take precedence over regex patterns. If there is a match in the
 string pattern, no match is made in the regex pattern.
 
 ```ts
-import { Lexer, TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Lexer, Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
 
-const tokenMap: TokenMap = {
+const rules: Rules = {
   CONST: "const",
   IDENT: /.+/,
 };
-const { tokens } = new Lexer(tokenMap).lex("constant");
-assertEquals(tokens, [
-  { type: "CONST", literal: "const", offset: 0 },
-  { type: "IDENT", literal: "ant", offset: 5 },
+const { values } = new Lexer(rules).analyze("constant");
+assertEquals(values, [
+  { type: "CONST", value: "const", offset: 0, column: 0, line: 1 },
+  { type: "IDENT", value: "ant", offset: 5, column: 5, line: 1 },
 ]);
 ```
 
@@ -241,19 +236,17 @@ The input is converted to a token stream by the lexer.
 
 The result has the following structure:
 
-| Name   | Description                                                          |
-| ------ | -------------------------------------------------------------------- |
-| tokens | `Token[]` <br> Token streams.                                        |
-| done   | `boolean`<br> Whether the lex has done or not.                       |
-| offset | `number`<br> Final offset. Same as the last index of the last token. |
+| Name   | Description                   |
+| ------ | ----------------------------- |
+| values | `Token[]` <br> Token streams. |
 
 `Token` structure is:
 
-| Name    | Description                                            |
-| ------- | ------------------------------------------------------ |
-| type    | `string` <br> Defined token type.                      |
-| literal | `string`<br> Actual token literal value.               |
-| offset  | `number`<br> FStart index of the matched in the input. |
+| Name   | Description                                            |
+| ------ | ------------------------------------------------------ |
+| type   | `string` <br> Defined token type.                      |
+| value  | `string`<br> Actual token text value.                  |
+| offset | `number`<br> FStart index of the matched in the input. |
 
 If a character not matching the pattern is encountered, it is aborted and `done`
 is returned as `false` along with the token stream up to that point.
@@ -265,15 +258,15 @@ The `type` of a token matches the token type defined in the token map.
 The `type` of the token is narrowed by generics.
 
 ```ts
-import { Lexer, TokenMap } from "https://deno.land/x/lexer@$VERSION/mod.ts";
+import { Lexer, Rules } from "https://deno.land/x/lexer@$VERSION/mod.ts";
 import { assertEquals } from "https://deno.land/std@$VERSION/testing/asserts.ts";
 
-const tokenMap: TokenMap = {
+const rules: Rules = {
   CONST: "const",
   IDENT: /.+/,
 };
-const { tokens } = new Lexer(tokenMap).lex("constant");
-tokens.forEach(({ type }) => {
+const { values } = new Lexer(rules).analyze("constant");
+values.forEach(({ type }) => {
   type; // infer "CONST" | "INDENT"
 });
 ```
