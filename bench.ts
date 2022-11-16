@@ -1,13 +1,7 @@
-import { Lexer, TokenMap } from "./mod.ts";
-import { isString } from "./deps.ts";
-import { fromFileUrl } from "https://deno.land/std@0.153.0/path/mod.ts";
-import {
-  createLexer,
-  RegexRule,
-  Rules,
-} from "https://deno.land/x/leac@v0.6.0/mod.ts";
-import { resolveOptions } from "./lexer.ts";
-import { assertEquals } from "./dev_deps.ts";
+import * as Lexer from "./mod.ts";
+import { isRegExp, isString } from "./deps.ts";
+import { fromFileUrl } from "https://deno.land/std@0.163.0/path/mod.ts";
+import * as Leac from "https://deno.land/x/leac@v0.6.0/mod.ts";
 
 const source = await Deno.readTextFile(
   fromFileUrl(import.meta.resolve("./lexer.ts")),
@@ -136,11 +130,13 @@ const tokenMap = {
   [TokenType.COMMENT]: /\/\*\*(.+?)\*\//s,
 };
 
-function toLeac(tokenMap: TokenMap): Rules {
-  return Object.entries(tokenMap).map(([type, pattern]) => {
+function toLeac(rules: Lexer.Rules): Leac.Rules {
+  return Object.entries(rules).map(([type, pattern]) => {
     if (typeof pattern === "symbol") return { "name": "xxxxxxx" };
 
-    const options = resolveOptions(pattern);
+    const options = (isString(pattern) || isRegExp(pattern))
+      ? { pattern, ignore: false }
+      : pattern;
 
     if (isString(options.pattern)) {
       return {
@@ -149,21 +145,20 @@ function toLeac(tokenMap: TokenMap): Rules {
       };
     }
 
-    const rule: RegexRule = {
+    const rule: Leac.RegexRule = {
       name: type,
       regex: options.pattern,
       discard: options.ignore,
     };
     return rule;
-  }) as Rules;
+  }) as Leac.Rules;
 }
 
 Deno.bench("lexer (maximum munch)", {
   group: "complex lex",
   baseline: true,
 }, () => {
-  const { done } = new Lexer(tokenMap).lex(source);
-  assertEquals(done, true);
+  new Lexer.Lexer(tokenMap).analyze(source);
 });
 
 const rules = toLeac(tokenMap);
@@ -172,6 +167,5 @@ Deno.bench("leac (dispatching priority match)", {
   group: "complex lex",
   baseline: true,
 }, () => {
-  const r = createLexer(rules)(source);
-  assertEquals(r.complete, true);
+  Leac.createLexer(rules)(source);
 });
