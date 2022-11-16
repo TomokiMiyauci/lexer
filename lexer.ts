@@ -14,14 +14,9 @@ import {
   foldByType,
   uniqueChar,
 } from "./utils.ts";
-import type {
-  AnalyzeResult,
-  FragmentToken,
-  Grammar,
-  RuleMap,
-  RuleOptions,
-} from "./types.ts";
+import type { FragmentToken, PatternMap, Rule, Rules, Token } from "./types.ts";
 import { CursorImpl } from "./cursor.ts";
+import { Pattern } from "./mod.ts";
 
 /** Lexer options. */
 export interface LexerOptions {
@@ -39,6 +34,11 @@ export interface LexerOptions {
    * @default "EOF"
    */
   readonly eof?: string | boolean;
+}
+
+/** Result of lexical analyze. */
+export interface AnalyzeResult {
+  readonly values: Token[];
 }
 
 const DEFAULT_UNKNOWN = "UNKNOWN";
@@ -64,34 +64,31 @@ const DEFAULT_EOF = "EOF";
  *   },
  * });
  * const input = `let sum = 100 + 200;`;
- * const result = lexer.lex(input);
+ * const result = lexer.analyze(input);
  * assertEquals(result, {
- *   tokens: [
- *     { type: "Let", literal: "let", offset: 0 },
- *     { type: "Ident", literal: "sum", offset: 3 },
+ *   values: [
+ *     { type: "Let", value: "let", offset: 0, column: 0, line: 1 },
+ *     { type: "Ident", value: "sum", offset: 3, column: 3, line: 1 },
  *     // ...,
- *     { type: "Semicolon", literal: ";", offset: 19 },
+ *     { type: "Semicolon", value: ";", offset: 19, column: 19, line: 1 },
  *   ],
- *   done: true,
- *   offset: 20,
  * });
  * ```
  * @throws {Error} When the regex pattern has `g` flag.
  */
 export class Lexer {
-  #ruleMap: Rules;
-
+  #ruleMap: TypePatternContext;
   #unknown: string;
   #eof: string;
   #enableEof: boolean;
 
-  constructor(grammar: Grammar, options?: LexerOptions) {
+  constructor(rules: Rules, options?: LexerOptions) {
     const { eof: _eof = DEFAULT_EOF, unknown = DEFAULT_UNKNOWN } = options ??
       {};
     const eof = isString(_eof) ? _eof : DEFAULT_EOF;
-    const rules = mapValues(grammar, resolveOptions);
+    const detailRules = mapValues(rules, resolvePattern);
 
-    this.#ruleMap = preProcess(rules);
+    this.#ruleMap = preProcess(detailRules);
     this.#ruleMap.regex.forEach($(prop("pattern"), assertRegExpFrag));
     this.#unknown = unknown;
     this.#eof = eof;
@@ -109,11 +106,7 @@ export class Lexer {
       const result = resolveRule({
         string: stringResolver,
         regex: regexResolver,
-      }, {
-        input,
-        offset: cursor.current,
-        ...this.#ruleMap,
-      });
+      }, { input, offset: cursor.current, ...this.#ruleMap });
 
       if (result) {
         if (result.ignore) {
@@ -136,17 +129,21 @@ export class Lexer {
       tokens.push({ type: this.#eof, value: "", offset: cursor.current });
     }
 
-    const values = foldByType(columnLine(tokens), this.#unknown).filter((
-      token,
-    ) => !ignoreTypes.has(token.type));
+    const values = foldByType(columnLine(tokens), this.#unknown).filter(
+      isNotIgnoreToken,
+    );
 
     return { values };
+
+    function isNotIgnoreToken(token: Token): boolean {
+      return !ignoreTypes.has(token.type);
+    }
   }
 }
 
 function getTokenByRegex(
   input: string,
-  ctx: Rules["regex"],
+  ctx: TypePatternContext["regex"],
 ): ResolveResult | undefined {
   const tokens: ResolveResult[] = [];
 
@@ -154,11 +151,7 @@ function getTokenByRegex(
     const result = pattern.exec(input);
 
     if (result && result[0]) {
-      tokens.push({
-        ...rest,
-        pattern,
-        resolved: result[0],
-      });
+      tokens.push({ ...rest, pattern, resolved: result[0] });
     }
   });
 
@@ -167,13 +160,10 @@ function getTokenByRegex(
   return maybeToken;
 }
 
-function resolveOptions(
-  options: string | RegExp | RuleOptions,
-): RuleOptions {
-  if (isString(options) || isRegExp(options)) {
-    return { pattern: options };
-  }
-  return options;
+function resolvePattern(pattern: Pattern | Rule): Rule {
+  if (isString(pattern) || isRegExp(pattern)) return { pattern };
+
+  return pattern;
 }
 
 interface ResolverContext {
@@ -183,38 +173,34 @@ interface ResolverContext {
 
 function resolveRule(
   resolvers: ResolverMap,
-  context: ResolverContext & Rules,
+  context: ResolverContext & TypePatternContext,
 ): ResolveResult | void {
   const r1 = resolvers.string(context, context.string);
 
-  if (r1) {
-    return r1;
-  }
+  if (r1) return r1;
 
   const r2 = resolvers.regex(context, context.regex);
 
-  if (r2) {
-    return r2;
-  }
+  if (r2) return r2;
 }
 
-type TypeRuleMap = {
-  [k in keyof RuleMap]: { pattern: RuleMap[k] } & RuleOptions;
+type TypePatternMap = {
+  [k in keyof PatternMap]: { pattern: PatternMap[k] } & Rule;
 };
 
-type Rules = {
-  [k in keyof TypeRuleMap]: (MatchContext & TypeRuleMap[k])[];
+type TypePatternContext = {
+  [k in keyof TypePatternMap]: (MatchContext & TypePatternMap[k])[];
 };
 
 type ResolverMap = {
-  [k in keyof Rules]: ExtendArg<Resolver, Rules[k]>;
+  [k in keyof TypePatternContext]: ExtendArg<Resolver, TypePatternContext[k]>;
 };
 
 interface Typeable {
   type: string;
 }
 
-interface MatchContext extends RuleOptions, Typeable {}
+interface MatchContext extends Rule, Typeable {}
 
 interface ResolveResult extends MatchContext {
   resolved: string;
@@ -225,19 +211,20 @@ interface Resolver {
 }
 
 interface PreProcessor {
-  (rules: Record<string, RuleOptions>): Rules;
+  (rules: Record<string, Rule>): TypePatternContext;
 }
 
+const $pattern = prop("pattern");
+
 const preProcess: PreProcessor = (rules) => {
-  const $pattern = prop("pattern");
   const entries = Object.entries(rules);
   const typed = entries.map(([type, value]) => ({ type, ...value }));
   const strings = typed.filter(
     $($pattern, isString),
-  ) as (TypeRuleMap["string"] & Typeable)[];
+  ) as (TypePatternMap["string"] & Typeable)[];
   const regexs = typed.filter(
     $($pattern, isRegExp),
-  ) as (TypeRuleMap["regex"] & Typeable)[];
+  ) as (TypePatternMap["regex"] & Typeable)[];
   const string = strings.toSorted((a, b) =>
     b.pattern.length - a.pattern.length
   );
@@ -255,9 +242,7 @@ const stringResolver: ResolverMap["string"] = ({ input, offset }, rules) => {
   const characters = input.substring(offset);
   const result = rules.find(({ pattern }) => characters.startsWith(pattern));
 
-  if (result) {
-    return { ...result, resolved: result.pattern };
-  }
+  if (result) return { ...result, resolved: result.pattern };
 };
 
 const regexResolver: ResolverMap["regex"] = ({ input, offset }, rules) => {

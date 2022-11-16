@@ -11,19 +11,6 @@ export interface Token extends Position {
 
 export type FragmentToken = Pick<Token, "offset" | "type" | "value">;
 
-// export interface Range {
-//   /** Position offset from top of token stream. */
-//   readonly offset: number;
-// }
-
-// export interface Location {
-//   /** Position of the first character of the token. */
-//   readonly start: Position;
-
-//   /** Position of the last character of the token. */
-//   readonly end: Position;
-// }
-
 export interface Position {
   /** Position offset from top of token stream. */
   readonly offset: number;
@@ -34,23 +21,18 @@ export interface Position {
 }
 
 /** Map of token type and token patterns. */
-export type Grammar = {
-  readonly [k: string]: Rule | RuleOptions;
+export type Rules = {
+  readonly [k: string]: Pattern | Rule;
 };
 
-export interface RuleOptions {
-  readonly pattern: Rule;
+export interface Rule {
+  readonly pattern: Pattern;
   readonly ignore?: boolean;
 }
 
-export interface RuleMap {
+export interface PatternMap {
   readonly string: string;
   readonly regex: RegExp;
 }
 
-export type Rule = ValueOf<RuleMap>;
-
-/** Result of lexical analyze. */
-export interface AnalyzeResult {
-  readonly values: Token[];
-}
+export type Pattern = ValueOf<PatternMap>;
